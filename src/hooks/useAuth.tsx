@@ -1,12 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
-import { appConfig } from '../config/env';
+export type AuthSession = {
+  userId: string;
+  email: string;
+  provider: 'google' | 'supabase' | 'demo';
+};
 
-export const supabaseClient = appConfig.supabaseUrl && appConfig.supabaseAnonKey
-  ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
+export type DashboardMetric = {
+  label: string;
+  value: string;
+  delta: string;
+  tone: 'positive' | 'neutral' | 'warning';
+};
+
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+};
+
+export type SafetyState = {
+  isSecureContext: boolean;
+  environment: string;
+  authProviders: string[];
+};
+
