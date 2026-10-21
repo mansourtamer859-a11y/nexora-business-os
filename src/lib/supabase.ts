@@ -1,7 +1,21 @@
 import { appConfig, isGeminiConfigured } from '../config/env';
 import type { ChatMessage } from '../types';
 
-export async function fetchGeminiResponse({
+const parseGeminiText = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') {
+    return '';
+  }
+
+  const candidate = (payload as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0];
+  const text = candidate?.content?.parts
+    ?.map((part) => part.text ?? '')
+    .join('')
+    .trim();
+
+  return text ?? '';
+};
+
+export async function fetchGeminiStream({
   messages,
   systemPrompt,
 }: {
@@ -20,6 +34,10 @@ export async function fetchGeminiResponse({
       role: message.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: message.content }],
     })),
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 500,
+    },
   };
 
   const response = await fetch(
@@ -39,12 +57,7 @@ export async function fetchGeminiResponse({
   }
 
   const data = await response.json();
-  const result =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? '')
-      .join('')
-      .trim() ??
-    'The assistant could not generate a response. Please try again.';
-
+  const result = parseGeminiText(data) || 'The assistant could not generate a response. Please try again.';
   return result;
 }
+

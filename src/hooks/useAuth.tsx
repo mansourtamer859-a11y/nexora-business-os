@@ -4,7 +4,7 @@ const getEnv = (key: string, fallback: string = '') => {
 };
 
 export const appConfig = {
-  appName: getEnv('VITE_APP_NAME', 'NEXORA Business OS'),
+  appName: getEnv('VITE_APP_NAME', 'NEXORA Nexus Prime'),
   environment: getEnv('VITE_APP_ENVIRONMENT', 'development'),
   apiBaseUrl: getEnv('VITE_API_BASE_URL', 'https://api.example.com'),
   supabaseUrl: getEnv('VITE_SUPABASE_URL', ''),
