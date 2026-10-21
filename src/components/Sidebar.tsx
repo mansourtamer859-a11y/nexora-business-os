@@ -1,17 +1,17 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import type { DashboardMetric } from '../types';
 
-export function ProtectedRoute() {
-  const { session, isReady } = useAuth();
-  const location = useLocation();
+type MetricCardProps = {
+  metric: DashboardMetric;
+};
 
-  if (!isReady) {
-    return <div className="loading-shell">Verifying secure session...</div>;
-  }
-
-  if (!session) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-
-  return <Outlet />;
+export function MetricCard({ metric }: MetricCardProps) {
+  return (
+    <article className="metric-card">
+      <div className="metric-header">
+        <p>{metric.label}</p>
+        <span className={`delta ${metric.tone}`}>{metric.delta}</span>
+      </div>
+      <strong>{metric.value}</strong>
+    </article>
+  );
 }

@@ -1,74 +1,110 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { appConfig, isSecureConfigReady } from '../config/env';
-import type { AuthSession } from '../types';
+import { useCallback, useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { fetchGeminiResponse } from '../lib/gemini';
+import { persistChatTurns, resolveChatSessionId } from '../lib/supabase';
+import type { ChatMessage } from '../types';
 
-const AUTH_STORAGE_KEY = 'nexora-auth-session';
-
-type AuthContextValue = {
-  session: AuthSession | null;
-  isReady: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
+type ChatPanelProps = {
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export function ChatPanel({ messages, setMessages }: ChatPanelProps) {
+  const { session } = useAuth();
+  const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const sendMessage = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isSending) return;
 
-  useEffect(() => {
-    const storedValue = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedValue) {
-      try {
-        setSession(JSON.parse(storedValue));
-      } catch {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
-    }
-    setIsReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (session) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    }
-  }, [session]);
-
-  const signInWithGoogle = async () => {
-    if (!isSecureConfigReady && !appConfig.enableDemoAuth) {
-      throw new Error('Google OAuth is not configured. Supply VITE_GOOGLE_CLIENT_ID and VITE_SUPABASE_* values.');
-    }
-
-    const demoSession: AuthSession = {
-      userId: 'demo-user-1',
-      email: 'nexora.operator@demo.local',
-      provider: 'google',
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: trimmed,
+      createdAt: new Date().toISOString(),
     };
 
-    setSession(demoSession);
-  };
+    setMessages((current) => [...current, userMessage]);
+    setInput('');
+    setIsSending(true);
 
-  const signOut = async () => {
-    setSession(null);
-  };
+    try {
+      const activeSessionId = await resolveChatSessionId(session?.userId ?? 'demo-user');
+      const history = [...messages, userMessage].slice(-8);
+      const assistantText = await fetchGeminiResponse({
+        messages: history,
+        systemPrompt:
+          'You are the NEXORA Business OS AI assistant. Provide concise, executive-ready insights about system health, user growth, and operational risk. Always answer in plain business language with recommendations when useful.',
+      });
 
-  const value = useMemo<AuthContextValue>(
-    () => ({ session, isReady, signInWithGoogle, signOut }),
-    [session, isReady],
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: assistantText,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((current) => [...current, assistantMessage]);
+      await persistChatTurns({ sessionId: activeSessionId, turns: [userMessage, assistantMessage] });
+    } catch (error) {
+      console.error('Gemini request failed:', error);
+      const fallbackMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content:
+          'The Gemini service is temporarily unavailable, but your latest request was captured securely and the session remains active.',
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((current) => [...current, fallbackMessage]);
+
+      try {
+        const activeSessionId = await resolveChatSessionId(session?.userId ?? 'demo-user');
+        await persistChatTurns({ sessionId: activeSessionId, turns: [userMessage, fallbackMessage] });
+      } catch (persistError) {
+        console.error('Fallback persistence failed:', persistError);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  }, [input, isSending, messages, session, setMessages]);
+
+  return (
+    <div className="panel chat-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">AI copilot</p>
+          <h3>Session-based assistant</h3>
+        </div>
+        <span className="status-badge neutral">{isSending ? 'Thinking…' : 'Live'}</span>
+      </div>
+
+      <div className="chat-list" aria-live="polite">
+        {messages.map((message) => (
+          <div key={message.id} className={`chat-bubble ${message.role}`}>
+            <p>{message.content}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="chat-input-row">
+        <input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              void sendMessage();
+            }
+          }}
+          placeholder="Ask the copilot to analyze workflow health..."
+          aria-label="Ask the AI assistant"
+          disabled={isSending}
+        />
+        <button className="primary-button" onClick={() => void sendMessage()} disabled={isSending}>
+          {isSending ? 'Sending...' : 'Send'}
+        </button>
+      </div>
+    </div>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider.');
-  }
-
-  return context;
 }

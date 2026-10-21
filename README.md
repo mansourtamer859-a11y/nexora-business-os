@@ -1,39 +1,31 @@
 # NEXORA Business OS
 
-A secure, mobile-first enterprise dashboard and AI assistant scaffold for the NEXORA Business OS platform.
+NEXORA Business OS is a secure enterprise dashboard and AI command center built for business operations, analytics, and operator workflows.
 
 ## Features
-- Mobile-first business dashboard with responsive layout
-- Protected routes and secure auth flow shell for Supabase Auth + Google OAuth
-- Centralized environment-based configuration and modular security boundaries
-- Dashboard metrics for users, latency, API uptime, and system health
-- Persistent AI chat session with local browser session storage
-- Error boundary and resilient UI patterns
-- Relational schema examples for Supabase/Postgres analytics and chat persistence
+- Mobile-first responsive dashboard
+- Protected routes with strict authentication gating
+- Supabase Auth + Google OAuth-ready setup
+- Gemini API integration for AI assistant responses
+- Persistent chat session history storage in Supabase
+- Error boundary and safe fallback handling
+- Clean enterprise visual design
 
-## Getting started
+## Quick start
 
-1. Install dependencies:
+1. Install dependencies
    npm install
-2. Copy the environment template:
+2. Copy environment values
    cp .env.example .env.local
-3. Fill in the Supabase and Google OAuth values for your environment.
-4. Run the app:
+3. Fill in your Supabase and Google credentials
+4. Add your Gemini key in `VITE_GEMINI_API_KEY`
+5. Start the app
    npm run dev
 
-## Production notes
-
-- Do not commit `.env.local` or any real secrets.
-- Keep all runtime-configurable values in `VITE_*` variables.
-- Replace the in-browser demo auth with your production Supabase client when ready.
-
-## Project structure
-- `src/components` — reusable dashboard and chat components
-- `src/config` — app configuration and environment validation
-- `src/hooks` — auth and persistence hooks
-- `src/lib` — Supabase client, schema definitions, and state helpers
-- `src/styles.css` — enterprise styling and responsive layout
+## Production deployment notes
+- Keep secrets in `.env.local` or your deployment environment variables only.
+- Never expose the Supabase service role key in the browser.
+- Use the anon key and JWT-secured RLS policies for front-end access.
 
 ## Security model
-
-This scaffold intentionally separates presentation, security boundaries, and environment configuration. Sensitive values are not embedded in the UI layer. Authentication is isolated behind the auth provider, while the dashboard remains protected behind route guards.
+Authentication and runtime secrets remain isolated from the UI. The dashboard routes remain behind protected access and the app uses runtime-configured values instead of hardcoded credentials.
