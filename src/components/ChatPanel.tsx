@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react';
 import { checkDatabaseConnectivity } from '../lib/supabase';
 
-const navItems = ['Overview', 'Analytics', 'Team', 'Security', 'AI Suite'];
+const navItems = ['Overview', 'Operations', 'Finance', 'Security', 'Automation'];
 
 export function Sidebar() {
   const [databaseStatus, setDatabaseStatus] = useState({
     healthy: false,
     latencyMs: 0,
     message: 'Checking connectivity...',
-    checkedAt: '',
   });
 
   useEffect(() => {
     let active = true;
 
     const refreshStatus = async () => {
-      const status = await checkDatabaseConnectivity();
+      const nextStatus = await checkDatabaseConnectivity();
       if (active) {
-        setDatabaseStatus(status);
+        setDatabaseStatus(nextStatus);
       }
     };
 
@@ -33,12 +32,14 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="sidebar">
-      <div className="brand-row sidebar-brand">
-        <div className="brand-mark">N</div>
-        <div>
-          <p className="eyebrow">Nexus Prime</p>
-          <strong>NEXORA</strong>
+    <aside className="sidebar glass-panel">
+      <div className="sidebar-header">
+        <div className="brand-row">
+          <div className="brand-mark">N</div>
+          <div>
+            <p className="eyebrow">ERP Matrix</p>
+            <strong>NEXUS</strong>
+          </div>
         </div>
       </div>
 
@@ -50,14 +51,15 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="sidebar-footer sidebar-status-block">
+      <div className="status-card">
         <div className="database-status-row">
           <span className={`heartbeat ${databaseStatus.healthy ? 'online' : 'offline'}`} aria-label="Database connectivity" />
           <span>Database</span>
         </div>
+
         <div className="database-status-copy">
-          <strong>{databaseStatus.healthy ? 'Connected' : 'Offline'}</strong>
-          <small>{databaseStatus.latencyMs ? `${databaseStatus.latencyMs}ms` : 'Awaiting check'}</small>
+          <strong>{databaseStatus.healthy ? 'Connected' : 'Awaiting'}</strong>
+          <small>{databaseStatus.latencyMs ? `${databaseStatus.latencyMs}ms` : 'checking...'}</small>
         </div>
       </div>
     </aside>

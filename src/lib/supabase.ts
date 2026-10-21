@@ -57,7 +57,6 @@ export async function fetchGeminiStream({
   }
 
   const data = await response.json();
-  const result = parseGeminiText(data) || 'The assistant could not generate a response. Please try again.';
-  return result;
+  return parseGeminiText(data) || 'The assistant could not generate a response. Please try again.';
 }
 

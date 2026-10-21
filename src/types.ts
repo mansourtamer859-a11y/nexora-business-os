@@ -1,4 +1,4 @@
-VITE_APP_NAME="NEXORA Nexus Prime"
+VITE_APP_NAME="NEXUS SaaS ERP OS"
 VITE_APP_ENVIRONMENT="development"
 VITE_API_BASE_URL="https://api.example.com"
 VITE_SUPABASE_URL="https://your-project.supabase.co"

@@ -62,7 +62,7 @@ export const supabaseSchemaSql = `
   create index if not exists idx_chat_messages_session_id on chat_messages(session_id);
 `;
 
-const CHAT_SESSION_STORAGE_KEY = 'nexora-chat-session-id';
+const CHAT_SESSION_STORAGE_KEY = 'nexus-chat-session-id';
 
 export async function checkDatabaseConnectivity() {
   const checkedAt = new Date().toISOString();
@@ -120,7 +120,7 @@ export async function resolveChatSessionId(userId: string): Promise<string> {
 
   const { data, error } = await supabaseClient
     .from('chat_sessions')
-    .insert({ user_id: userId, title: 'NEXORA Nexus Prime briefing' })
+    .insert({ user_id: userId, title: 'NEXUS SaaS ERP OS briefing' })
     .select('id')
     .single();
 
@@ -159,7 +159,6 @@ export async function persistChatTurns({
   }));
 
   const { error } = await supabaseClient.from('chat_messages').insert(payload);
-
   if (error) {
     console.error('Failed to persist chat turns:', error);
   }

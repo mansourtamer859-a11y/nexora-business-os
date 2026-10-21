@@ -3,7 +3,7 @@ import { createClient, type Session } from '@supabase/supabase-js';
 import { appConfig } from '../config/env';
 import type { AuthSession } from '../types';
 
-const AUTH_STORAGE_KEY = 'nexora-auth-session';
+const AUTH_STORAGE_KEY = 'nexus-admin-session';
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -40,10 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const storedValue = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedValue) {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (stored) {
       try {
-        setSession(JSON.parse(storedValue));
+        setSession(JSON.parse(stored));
       } catch {
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
@@ -52,9 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) {
       if (appConfig.enableDemoAuth) {
         setSession({
-          id: 'demo-session',
-          userId: 'demo-user-1',
-          email: 'nexora.operator@demo.local',
+          id: 'demo-admin-session',
+          userId: 'demo-admin',
+          email: 'admin@nexusprime.io',
           provider: 'demo',
         });
       }
@@ -65,8 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncSession = async () => {
       const { data: { session: activeSession }, error } = await supabase.auth.getSession();
       if (!error) {
-        const authSession = toAuthSession(activeSession);
-        setSession(authSession);
+        setSession(toAuthSession(activeSession));
       }
       setIsReady(true);
     };
@@ -110,15 +109,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (appConfig.enableDemoAuth) {
       setSession({
-        id: 'demo-session',
-        userId: 'demo-user-1',
-        email: 'nexora.operator@demo.local',
+        id: 'demo-admin-session',
+        userId: 'demo-admin',
+        email: 'admin@nexusprime.io',
         provider: 'demo',
       });
       return;
     }
 
-    throw new Error('Supabase is not configured and demo auth is disabled in the environment.');
+    throw new Error('Supabase is not configured and demo auth is disabled.');
   };
 
   const signOut = async () => {
@@ -128,10 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
-  const value = useMemo<AuthContextValue>(
-    () => ({ session, isReady, signInWithGoogle, signOut }),
-    [session, isReady],
-  );
+  const value = useMemo<AuthContextValue>(() => ({ session, isReady, signInWithGoogle, signOut }), [session, isReady]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

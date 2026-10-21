@@ -1,31 +1,25 @@
-# NEXORA Nexus Prime
+# NEXUS SaaS ERP OS
 
-NEXORA Nexus Prime is a secure enterprise dashboard and AI command center built for business operations, analytics, and executive workflows.
+NEXUS SaaS ERP OS is an ultra-premium enterprise dashboard and AI operating environment for modern SaaS operations, cross-functional workflows, and executive decision-making.
 
 ## Features
-- Mobile-first responsive dashboard
-- Protected routes with strict authentication gating
-- Supabase Auth + Google OAuth-ready setup
-- Gemini API integration for AI assistant responses
-- Persistent chat session history storage in Supabase
-- Error boundary and safe fallback handling
-- Clean enterprise visual design
+- Premium cybernetic dark-mode dashboard
+- Secure multi-stage admin access workflow
+- Supabase Auth and Google OAuth-ready integration
+- MFA verification flow for privileged access
+- AI assistant with persistent message history
+- Real-time operational and database health monitoring
+- Responsive high-fidelity enterprise UI
 
 ## Quick start
 
 1. Install dependencies
    npm install
-2. Copy environment values
+2. Copy the environment template
    cp .env.example .env.local
-3. Fill in your Supabase and Google credentials
-4. Add your Gemini key in `VITE_GEMINI_API_KEY`
-5. Start the app
+3. Set your Supabase, Google, and Gemini values
+4. Start the app
    npm run dev
 
-## Production deployment notes
-- Keep secrets in `.env.local` or your deployment environment variables only.
-- Never expose the Supabase service role key in the browser.
-- Use the anon key and JWT-secured RLS policies for front-end access.
-
 ## Security model
-Authentication and runtime secrets remain isolated from the UI. The dashboard routes remain behind protected access and the app uses runtime-configured values instead of hardcoded credentials.
+Site access is guarded by a secure admin passcode and a 7-digit MFA verification challenge before the dashboard is reachable. Runtime secrets remain isolated from the browser interface.
