@@ -1,0 +1,65 @@
+import { useState } from 'react';
+import type { ChatMessage } from '../types';
+
+type ChatPanelProps = {
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+};
+
+export function ChatPanel({ messages, setMessages }: ChatPanelProps) {
+  const [input, setInput] = useState('');
+
+  const sendMessage = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+
+    const assistantReply: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: 'I have indexed your request in the current session context and I will prioritize the latest operational signals for a summary.',
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((current) => [...current, userMessage, assistantReply]);
+    setInput('');
+  };
+
+  return (
+    <div className="panel chat-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">AI copilot</p>
+          <h3>Session-based assistant</h3>
+        </div>
+      </div>
+
+      <div className="chat-list" aria-live="polite">
+        {messages.map((message) => (
+          <div key={message.id} className={`chat-bubble ${message.role}`}>
+            <p>{message.content}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="chat-input-row">
+        <input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') sendMessage();
+          }}
+          placeholder="Ask the copilot to analyze workflow health..."
+          aria-label="Ask the AI assistant"
+        />
+        <button className="primary-button" onClick={sendMessage}>Send</button>
+      </div>
+    </div>
+  );
+}
