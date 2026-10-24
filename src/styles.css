@@ -151,7 +151,7 @@ kbd { padding: 3px 5px; color: var(--muted); font: 9px Inter, ui-sans-serif, san
 .trend { display: inline-flex; align-items: center; gap: 3px; color: var(--mint); font-weight: 600; }
 
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(300px, .93fr); gap: 14px; align-items: stretch; }
-.panel { min-width: 0; padding: 17px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 3px 10px rgba(0, 0, 0, .035); }
+.panel { min-width: 0; padding: 17px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 3px 10px rgba(0, 0, 0, .035); content-visibility: auto; contain-intrinsic-size: auto 280px; }
 .panel-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .panel-title h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: -.1px; }
 .panel-title p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }

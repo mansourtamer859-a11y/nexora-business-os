@@ -33,6 +33,46 @@ async function getErrorMessage(response: Response): Promise<string> {
   return `Workspace request failed (${response.status}).`;
 }
 
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, delayMs);
+    const abort = () => {
+      window.clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      reject(new DOMException('The workspace request was aborted.', 'AbortError'));
+    };
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
+async function fetchWorkspace(signal: AbortSignal): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch('/api/business-data', {
+        cache: 'no-store',
+        signal,
+      });
+      if (![502, 503, 504].includes(response.status) || attempt === 2) return response;
+      lastError = new Error(await getErrorMessage(response));
+    } catch (requestError) {
+      if (signal.aborted) throw requestError;
+      lastError = requestError;
+      if (attempt === 2) break;
+    }
+    await waitForRetry(250 * (attempt + 1), signal);
+  }
+  throw lastError instanceof Error ? lastError : new Error('Workspace data could not be loaded.');
+}
+
 export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
   const [data, setData] = useState<WorkspaceData>(initialWorkspaceData);
   const [status, setStatus] = useState<WorkspaceDataStatus>('checking');
@@ -57,10 +97,7 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
 
     const load = async () => {
       try {
-        const response = await fetch('/api/business-data', {
-          cache: 'no-store',
-          signal: controller.signal,
-        });
+        const response = await fetchWorkspace(controller.signal);
         if (response.status === 401) {
           onUnauthorized();
           setStatus('unauthorized');
