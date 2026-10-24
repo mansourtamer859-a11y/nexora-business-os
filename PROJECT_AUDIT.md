@@ -1,9 +1,9 @@
 # Nexus business ERP SaaS OS — Project Audit Trace
 
-**Audit snapshot:** 2026-10-24
-**Repository branch:** `main`
-**Workspace:** `mansourtamer859-a11y/nexora-business-os`
-**Application type:** React 18 + TypeScript + Vite client-rendered SPA
+**Audit snapshot:** 2026-10-24  
+**Repository branch:** `main`  
+**Workspace:** `mansourtamer859-a11y/nexora-business-os`  
+**Application type:** React 18 + TypeScript + Vite client-rendered SPA  
 **Audit scope:** Architecture and UI milestones represented in the local repository history and validation evidence recorded during implementation.
 
 ## Executive summary
@@ -132,7 +132,7 @@ The subsequent hardening pass was also checked with strict TypeScript compilatio
 
 ## Current release posture
 
-**Ready for:** local preview, UI evaluation, and continued prototype development.
+**Ready for:** local preview, UI evaluation, and continued prototype development.  
 **Not yet ready for:** processing sensitive or real enterprise data, representing the passphrase gate as a security control, or claiming live OAuth/ERP integration.
 
 Before production release, implement and test the production prerequisites listed above, add automated UI/integration tests, verify accessibility with assistive technologies, and deploy behind a TLS-enabled edge with server-side identity and authorization.
