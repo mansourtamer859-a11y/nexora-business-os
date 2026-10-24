@@ -64,6 +64,38 @@ const prompts = [
   'Summarize this week’s cash flow',
 ];
 
+const assistantPrompts: Record<PageId, { label: string; action: string }[]> = {
+  Overview: [
+    { label: 'عرض الملخص المالي', action: prompts[3] },
+    { label: 'مراجعة الموظفين', action: prompts[1] },
+  ],
+  'AI assistant': [
+    { label: 'عرض الملخص المالي', action: prompts[3] },
+    { label: 'مراجعة الموظفين', action: prompts[1] },
+    { label: 'إنشاء تقرير المبيعات', action: prompts[0] },
+  ],
+  Finance: [
+    { label: 'تلخيص التدفق النقدي', action: prompts[3] },
+    { label: 'إنشاء تقرير المبيعات', action: prompts[0] },
+  ],
+  'Sales & CRM': [
+    { label: 'إنشاء تقرير المبيعات', action: prompts[0] },
+    { label: 'عرض الملخص المالي', action: prompts[3] },
+  ],
+  People: [
+    { label: 'مراجعة عمليات الرواتب', action: prompts[1] },
+    { label: 'عرض الملخص المالي', action: prompts[3] },
+  ],
+  Inventory: [
+    { label: 'مراجعة المخزون المنخفض', action: prompts[2] },
+    { label: 'تلخيص التدفق النقدي', action: prompts[3] },
+  ],
+  Analytics: [
+    { label: 'عرض الملخص المالي', action: prompts[3] },
+    { label: 'إنشاء تقرير المبيعات', action: prompts[0] },
+  ],
+};
+
 const initialDeals: Deal[] = [
   { id: 1, company: 'Linear Labs', contact: 'Maya Chen', value: 24800, stage: 'Qualified', color: 'lilac' },
   { id: 2, company: 'Northstar Health', contact: 'James Wilson', value: 18600, stage: 'Qualified', color: 'blue' },
@@ -156,21 +188,22 @@ function RevenueChart() {
   return <div className="revenue-chart" role="img" aria-label="Monthly recurring revenue trending upward from January to December"><div className="chart-y-labels"><span>$240k</span><span>$180k</span><span>$120k</span><span>$60k</span></div><div className="chart-main"><div className="chart-grid"><i /><i /><i /><i /></div><svg className="chart-line" viewBox="0 0 720 190" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity=".22" /><stop offset="100%" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs><path d="M0 155 C30 147 38 130 65 139 S110 128 130 113 S170 125 196 103 S238 111 260 92 S305 109 325 79 S370 90 392 65 S435 82 455 54 S500 72 520 48 S560 59 586 34 S630 45 650 21 S690 27 720 10 V190 H0 Z" fill="url(#area-fill)" /><path d="M0 155 C30 147 38 130 65 139 S110 128 130 113 S170 125 196 103 S238 111 260 92 S305 109 325 79 S370 90 392 65 S435 82 455 54 S500 72 520 48 S560 59 586 34 S630 45 650 21 S690 27 720 10" fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></svg><div className="chart-x-labels">{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month) => <span key={month}>{month}</span>)}</div></div></div>;
 }
 
-function VoiceAssistant({ onRun }: { onRun: (prompt: string) => void }) {
+function VoiceAssistant({ onRun, page }: { onRun: (prompt: string) => void; page: PageId }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const quickActions = assistantPrompts[page];
 
   useEffect(() => {
     if (!listening) return undefined;
     const timer = window.setTimeout(() => {
-      setTranscript(prompts[0]);
+      setTranscript(quickActions[0].label);
       setListening(false);
-      onRun(prompts[0]);
+      onRun(quickActions[0].action);
     }, 2100);
     return () => window.clearTimeout(timer);
-  }, [listening, onRun]);
+  }, [listening, onRun, quickActions]);
 
-  return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXUS INTELLIGENCE</span><h2>Your business,<br />in a conversation.</h2><p>Ask anything across your workspace. Nexus connects the dots and turns insight into action.</p><div className="voice-transcript">{transcript ? <><span>YOU SAID</span><p>“{transcript}”</p></> : <span>Try a prompt or tap the mic to speak</span>}</div><div className="prompt-list">{prompts.slice(0, 2).map((prompt) => <button key={prompt} onClick={() => { setTranscript(prompt); onRun(prompt); }}>{prompt}<Icon name="arrow" size={14} /></button>)}</div></div><div className={`voice-visual ${listening ? 'listening' : ''}`}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 27 }, (_, index) => <i key={index} style={{ '--bar': `${15 + ((index * 19) % 65)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={() => setListening((current) => !current)} aria-label={listening ? 'Stop listening' : 'Start listening'}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{listening ? 'LISTENING…' : 'TAP TO SPEAK'}</span></div></Panel>;
+  return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXUS INTELLIGENCE · {arabicNavigation[page]}</span><div className="assistant-welcome" lang="ar" dir="rtl">مرحباً بك في Nexus OS. كيف يمكنني مساعدتك في إدارة شركتك اليوم؟</div><p className="assistant-subtitle" lang="ar" dir="rtl">مساعدك الذكي جاهز — اختر مهمة للبدء.</p><div className="voice-transcript" aria-live="polite">{transcript && <><span lang="ar">آخر طلب</span><p>“{transcript}”</p></>}</div><div className="prompt-list" lang="ar" dir="rtl">{quickActions.map((prompt) => <button key={prompt.label} onClick={() => { setTranscript(prompt.label); onRun(prompt.action); }}>{prompt.label}<Icon name="arrow" size={14} /></button>)}</div></div><div className={`voice-visual ${listening ? 'listening' : ''}`}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <i key={index} style={{ '--bar': `${18 + ((index * 19) % 48)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={() => setListening((current) => !current)} aria-label={listening ? 'Stop listening' : 'Start listening'}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{listening ? 'LISTENING…' : 'TAP TO SPEAK'}</span></div></Panel>;
 }
 
 function OverviewPage({ onRun, reportGenerated }: { onRun: (prompt: string) => void; reportGenerated: boolean }) {
