@@ -53,8 +53,8 @@ const iconContent: Record<IconName, ReactNode> = {
   close: <><path d="m18 6-12 12M6 6l12 12" /></>,
 };
 
-function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
-  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{iconContent[name]}</svg>;
+function Icon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
+  return <svg className={className} aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{iconContent[name]}</svg>;
 }
 
 const prompts = [
@@ -107,7 +107,7 @@ const initialDeals: Deal[] = [
 ];
 
 function PageHeading({ page, description, action }: { page: string; description: string; action?: ReactNode }) {
-  return <div className="page-heading"><div><p className="eyebrow">{page === 'Overview' ? 'NEXUS BUSINESS ERP SAAS OS · MONDAY, OCTOBER 23, 2026' : 'NEXUS BUSINESS ERP SAAS OS'}</p><h1>{page === 'Overview' ? 'Good morning, Alex' : page}</h1><p className="heading-description">{description}</p></div>{action}</div>;
+  return <div className="page-heading"><div><p className="eyebrow">{page === 'Overview' ? 'NEXUS BUSINESS ERP SAAS OS · MONDAY, OCTOBER 23, 2026' : 'NEXUS BUSINESS ERP SAAS OS'}</p><h1>{page === 'Overview' ? 'صباح الخير، Alex' : page}</h1><p className="heading-description">{description}</p></div>{action}</div>;
 }
 
 function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; value: string; delta: string; icon: IconName; tone?: string }) {
@@ -116,7 +116,7 @@ function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; v
   useEffect(() => {
     const timer = window.setInterval(() => {
       setPoints((current) => [...current.slice(1), Math.max(24, Math.min(86, current[current.length - 1] + Math.round(Math.random() * 18 - 8)))]);
-    }, 2400);
+    }, 7000);
     return () => window.clearInterval(timer);
   }, []);
   return <article className="metric-card"><div className="metric-top"><span>{label}</span><span className={`metric-icon ${tone}`}><Icon name={icon} size={17} /></span></div><div className="metric-value">{value}</div><div className="metric-sparkline" aria-hidden="true"><svg viewBox="0 0 110 70" preserveAspectRatio="none"><polyline points={line} /></svg></div><div className="metric-foot"><span className="trend"><Icon name="trend" size={13} />{delta}</span><span>vs last month</span></div></article>;
@@ -206,8 +206,32 @@ function VoiceAssistant({ onRun, page }: { onRun: (prompt: string) => void; page
   return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXUS INTELLIGENCE · {arabicNavigation[page]}</span><div className="assistant-welcome" lang="ar" dir="rtl">مرحباً بك في Nexus OS. كيف يمكنني مساعدتك في إدارة شركتك اليوم؟</div><p className="assistant-subtitle" lang="ar" dir="rtl">مساعدك الذكي جاهز — اختر مهمة للبدء.</p><div className="voice-transcript" aria-live="polite">{transcript && <><span lang="ar">آخر طلب</span><p>“{transcript}”</p></>}</div><div className="prompt-list" lang="ar" dir="rtl">{quickActions.map((prompt) => <button key={prompt.label} onClick={() => { setTranscript(prompt.label); onRun(prompt.action); }}>{prompt.label}<Icon name="arrow" size={14} /></button>)}</div></div><div className={`voice-visual ${listening ? 'listening' : ''}`}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <i key={index} style={{ '--bar': `${18 + ((index * 19) % 48)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={() => setListening((current) => !current)} aria-label={listening ? 'Stop listening' : 'Start listening'}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{listening ? 'LISTENING…' : 'TAP TO SPEAK'}</span></div></Panel>;
 }
 
-function OverviewPage({ onRun, reportGenerated }: { onRun: (prompt: string) => void; reportGenerated: boolean }) {
-  return <><PageHeading page="Overview" description="Here’s what’s happening across your workspace today." action={<button className="button button-primary" onClick={() => onRun(prompts[0])}><Icon name="plus" size={16} />{reportGenerated ? 'Report ready' : 'Generate report'}</button>} /><div className="metrics-grid"><Metric label="Total revenue" value="$284,590" delta="+12.8%" icon="wallet" /><Metric label="Active customers" value="2,840" delta="+8.2%" icon="users" tone="violet" /><Metric label="Monthly recurring" value="$48,290" delta="+14.6%" icon="trend" tone="blue" /><Metric label="Open opportunities" value="$186,400" delta="+4.3%" icon="chart" tone="amber" /></div><div className="dashboard-grid"><Panel className="revenue-panel"><PanelTitle title="Revenue overview" subtitle="Your revenue is up 12.8% from last year" action={<select aria-label="Revenue period" defaultValue="12 months"><option>12 months</option><option>6 months</option><option>30 days</option></select>} /><div className="chart-key"><span><i className="key-dot" />Revenue</span><b>$284,590 <small>+12.8%</small></b></div><RevenueChart /></Panel><VoiceAssistant onRun={onRun} /><Panel className="activity-panel"><PanelTitle title="Recent activity" action={<button className="text-button">View all <Icon name="arrow" size={14} /></button>} /><div className="activity-list"><Activity icon="check" title="Invoice paid" detail="INV-2026-084 · Meridian Studio" time="2 min ago" /><Activity icon="users" title="New customer added" detail="Riley Cooper · Northstar Health" time="18 min ago" /><Activity icon="boxes" title="Stock running low" detail="Wireless Headset · 8 remaining" time="1 hr ago" /><Activity icon="chart" title="Quarterly report ready" detail={reportGenerated ? 'Q4 sales report · just now' : 'Q3 sales report · Finance'} time={reportGenerated ? 'just now' : '3 hrs ago'} /></div></Panel><Panel className="pipeline-panel"><PanelTitle title="Sales pipeline" subtitle="Opportunity value by stage" action={<button className="text-button" onClick={() => window.dispatchEvent(new CustomEvent('nexus:navigate', { detail: 'Sales & CRM' }))}>Open pipeline <Icon name="arrow" size={14} /></button>} /><div className="pipeline-bars">{[['Qualified', 76, '$42.8k'], ['Proposal', 55, '$68.2k'], ['Negotiation', 34, '$51.4k'], ['Won', 63, '$24.0k']].map(([label, percent, value]) => <div className="pipeline-row" key={String(label)}><span>{label}</span><div className="pipeline-track"><i style={{ width: `${percent}%` }} /></div><b>{value}</b></div>)}</div></Panel></div></>;
+function AssistantDock({ page, onRun }: { page: PageId; onRun: (prompt: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const actions = assistantPrompts[page];
+  return <div className="assistant-dock" dir="rtl" lang="ar"><button className={`assistant-dock-trigger ${open ? 'open' : ''}`} onClick={() => setOpen((current) => !current)} aria-expanded={open}><Icon name={open ? 'close' : 'spark'} size={17} /><span>مساعد Nexus</span><i /></button>{open && <section className="assistant-dock-panel" aria-label={`اقتراحات مساعد Nexus · ${arabicNavigation[page]}`}><span className="assistant-label"><span className="live-dot" />{arabicNavigation[page]}</span><strong>كيف أساعدك الآن؟</strong><p>اقتراحات تناسب مساحة العمل الحالية.</p>{actions.map((action) => <button key={action.label} onClick={() => { onRun(action.action); setOpen(false); }}>{action.label}<Icon name="arrow" size={13} /></button>)}</section>}</div>;
+}
+
+const welcomeSteps = [
+  { title: 'ابدأ مع مساعد Nexus', detail: 'اختر اقتراحاً جاهزاً أو اكتب طلبك بصوتك.', target: 'مساعدك الذكي' },
+  { title: 'تابع مؤشراتك بهدوء', detail: 'أهم أرقام شركتك واضحة هنا، وتتحدث تلقائياً.', target: 'ملخص الأداء' },
+  { title: 'افتح التفاصيل عند الحاجة', detail: 'الطلبات والمهام والتحليلات منظمة في بطاقات قابلة للتوسيع.', target: 'بطاقات العمليات' },
+];
+
+function WelcomeTour() {
+  const [step, setStep] = useState(0);
+  const [visible, setVisible] = useState(() => sessionStorage.getItem('nexus-onboarding-dismissed') !== 'true');
+  if (!visible) return null;
+  const current = welcomeSteps[step];
+  const dismiss = () => {
+    sessionStorage.setItem('nexus-onboarding-dismissed', 'true');
+    setVisible(false);
+  };
+  return <section className="welcome-guide" lang="ar" dir="rtl" aria-label="دليل البدء"><span className="guide-spark"><Icon name="spark" size={16} /></span><div className="guide-copy"><span className="guide-kicker">بداية هادئة · {step + 1} من {welcomeSteps.length}</span><strong>{current.title}</strong><p>{current.detail}</p><div className="guide-progress" aria-label={`الخطوة ${step + 1} من ${welcomeSteps.length}`}>{welcomeSteps.map((item, index) => <i className={index <= step ? 'complete' : ''} key={item.target} />)}</div></div><div className="guide-actions"><button className="guide-dismiss" onClick={dismiss}>تخطّي</button><button className="guide-next" onClick={() => step === welcomeSteps.length - 1 ? dismiss() : setStep((currentStep) => currentStep + 1)}>{step === welcomeSteps.length - 1 ? 'ابدأ الآن' : 'التالي'}<Icon name="arrow" size={13} /></button></div></section>;
+}
+
+function OverviewPage({ onRun }: { onRun: (prompt: string) => void }) {
+  return <><PageHeading page="Overview" description="مساحة عملك، بوضوح وهدوء. كل ما تحتاجه في مكان واحد." /><WelcomeTour /><div className="metrics-grid zen-metrics"><Metric label="إجمالي الأرباح" value="$84,590" delta="+12.8%" icon="wallet" /><Metric label="المستخدمون النشطون" value="2,840" delta="+8.2%" icon="users" tone="violet" /><Metric label="سيولة المخزون" value="$92,640" delta="+6.4%" icon="boxes" tone="blue" /></div><section className="zen-host"><VoiceAssistant onRun={onRun} page="Overview" /></section><section className="zen-disclosures" lang="ar" dir="rtl"><details className="zen-disclosure"><summary><span className="disclosure-icon mint"><Icon name="chart" size={17} /></span><span className="disclosure-copy"><strong>الأداء المالي</strong><small>نظرة مبسطة على الإيرادات واتجاه النمو</small></span><span className="disclosure-hint">عرض التفاصيل</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content"><Panel className="revenue-panel"><PanelTitle title="Revenue overview" subtitle="Your revenue is up 12.8% from last year" /><div className="chart-key"><span><i className="key-dot" />Revenue</span><b>$284,590 <small>+12.8%</small></b></div><RevenueChart /></Panel></div></details><details className="zen-disclosure"><summary><span className="disclosure-icon blue"><Icon name="boxes" size={17} /></span><span className="disclosure-copy"><strong>الطلبات والمهام والتنبيهات</strong><small>العمليات اليومية مرتبة في مكان واحد</small></span><span className="disclosure-hint">عرض التفاصيل</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content"><ArabicOperations /></div></details><details className="zen-disclosure"><summary><span className="disclosure-icon violet"><Icon name="spark" size={17} /></span><span className="disclosure-copy"><strong>آخر تحديثات الشركة</strong><small>ملخص النشاط الأخير ومراحل المبيعات</small></span><span className="disclosure-hint">عرض التفاصيل</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content activity-disclosure"><Panel><PanelTitle title="Recent activity" /><div className="activity-list"><Activity icon="check" title="Invoice paid" detail="INV-2026-084 · Meridian Studio" time="2 min ago" /><Activity icon="users" title="New customer added" detail="Riley Cooper · Northstar Health" time="18 min ago" /><Activity icon="boxes" title="Stock running low" detail="Wireless Headset · 8 remaining" time="1 hr ago" /></div></Panel></div></details></section></>;
 }
 
 function ArabicOperations() {
@@ -241,7 +265,7 @@ function Activity({ icon, title, detail, time }: { icon: IconName; title: string
 }
 
 function AssistantPage({ onRun, execution }: { onRun: (prompt: string) => void; execution: string }) {
-  return <><PageHeading page="AI assistant" description="A capable partner for the questions and work that move your business forward." /><div className="assistant-layout"><VoiceAssistant onRun={onRun} /><Panel className="execution-panel"><PanelTitle title="Execution stream" subtitle="Live activity from your AI workspace" action={<span className="live-badge"><i />LIVE</span>} /><div className="execution-list"><Activity icon="check" title="Workspace context loaded" detail="Finance, CRM, People & inventory connected" time="now" /><Activity icon="spark" title={execution || 'Ready when you are'} detail={execution ? 'Action completed successfully' : 'Try a prompt to run your first action'} time={execution ? 'just now' : '—'} /><Activity icon="clock" title="Secure data connection" detail="Your workspace data stays in your account" time="active" /></div><div className="assistant-suggestions"><h3>QUICK ACTIONS</h3>{prompts.map((prompt) => <button key={prompt} onClick={() => onRun(prompt)}>{prompt}<Icon name="arrow" size={14} /></button>)}</div></Panel></div></>;
+  return <><PageHeading page="AI assistant" description="A capable partner for the questions and work that move your business forward." /><div className="assistant-layout"><VoiceAssistant onRun={onRun} page="AI assistant" /><Panel className="execution-panel"><PanelTitle title="Execution stream" subtitle="Live activity from your AI workspace" action={<span className="live-badge"><i />LIVE</span>} /><div className="execution-list"><Activity icon="check" title="Workspace context loaded" detail="Finance, CRM, People & inventory connected" time="now" /><Activity icon="spark" title={execution || 'Ready when you are'} detail={execution ? 'Action completed successfully' : 'Try a prompt to run your first action'} time={execution ? 'just now' : '—'} /><Activity icon="clock" title="Secure data connection" detail="Your workspace data stays in your account" time="active" /></div><div className="assistant-suggestions" lang="ar" dir="rtl"><h3>اقتراحات ذكية · {arabicNavigation['AI assistant']}</h3>{assistantPrompts['AI assistant'].map((prompt) => <button key={prompt.label} onClick={() => onRun(prompt.action)}>{prompt.label}<Icon name="arrow" size={14} /></button>)}</div></Panel></div></>;
 }
 
 function FinanceContent({ onRun }: { onRun: (prompt: string) => void }) {
@@ -304,7 +328,6 @@ export function App() {
   const [search, setSearch] = useState('');
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [execution, setExecution] = useState('');
-  const [reportGenerated, setReportGenerated] = useState(false);
   const [stock, setStock] = useState(8);
   const [deals, setDeals] = useState(initialDeals);
   const [toast, setToast] = useState('');
@@ -315,7 +338,6 @@ export function App() {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setExecution(title);
     setWorkflows((current) => [{ id: Date.now(), title, state: 'running' as const, time: now }, ...current].slice(0, 4));
-    if (normalized.includes('sales') || normalized.includes('report')) setReportGenerated(true);
     if (normalized.includes('payroll')) setToast('Payroll audit complete — no anomalies found.');
     else if (normalized.includes('inventory')) setToast('Inventory review complete — 2 items need reordering.');
     else if (normalized.includes('cash flow')) setToast('Cash flow summary is ready for this week.');
@@ -388,7 +410,28 @@ export function App() {
 
   return <div className="app-shell" data-theme={theme} dir="rtl" lang="ar">
     <aside className="sidebar"><div><button className="brand-lockup" aria-label="Nexus business ERP SaaS OS home" onClick={() => setActivePage('Overview')}><span className="brand-symbol"><span /><span /><span /><span /></span><span className="brand-name">nexus<span>business ERP SaaS OS</span></span></button><button className="workspace-switcher" onClick={() => setWorkspace((current) => current === 'Acme Studio' ? 'Northstar Group' : 'Acme Studio')}><span className="workspace-mark">{workspace === 'Acme Studio' ? 'A' : 'N'}</span><span><strong>{workspace}</strong><small>مساحة العمل المؤسسية</small></span><Icon name="chevron" size={15} /></button>{Object.entries(groupedItems).map(([group, items]) => <nav className="nav-group" key={group} aria-label={group === 'WORKSPACE' ? 'مساحة العمل' : group === 'BUSINESS' ? 'إدارة الأعمال' : 'التحليلات'}>{items.map((item) => <button key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}><Icon name={item.icon} size={17} /><span>{arabicNavigation[item.id]}</span>{item.id === 'Analytics' && <i className="nav-count">٣</i>}{item.id === 'Inventory' && <i className="nav-count">٢</i>}</button>)}</nav>)}</div><div className="sidebar-bottom"><div className="upgrade-card"><span className="upgrade-icon"><Icon name="spark" size={16} /></span><strong>اجعل أعمالك أكثر كفاءة</strong><p>اكتشف إمكانات الذكاء الاصطناعي لفريقك.</p><button onClick={() => setActivePage('AI assistant')}>استكشف مساعد Nexus <Icon name="arrow" size={13} /></button></div><button className="profile-button" onClick={() => setAccessStage('login')}><span className="profile-avatar">AM</span><span><strong>{userEmail}</strong><small>مدير مساحة العمل · تسجيل الخروج</small></span><Icon name="more" size={16} /></button></div></aside>
-    <main className="main-area"><header className="topbar"><div className="breadcrumb"><span>{workspace}</span><span>/</span><strong>{arabicNavigation[activePage]}</strong></div><div className="topbar-actions"><button className="search-trigger" onClick={() => setCommandOpen(true)}><Icon name="search" size={16} /><span>ابحث في مساحة العمل</span><kbd>⌘ K</kbd></button><button className="icon-button theme-toggle" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} /></button><button className="icon-button notification-button" aria-label="الإشعارات"><Icon name="bell" size={17} /><i /></button><span className="topbar-divider" /><div className="topbar-profile"><span className="profile-avatar">AM</span><Icon name="chevron" size={14} /></div></div></header><div className="page-content">{activePage === 'Overview' && <><OverviewPage onRun={runAction} reportGenerated={reportGenerated} /><ArabicOperations /></>}{activePage === 'AI assistant' && <AssistantPage onRun={runAction} execution={execution} />}{activePage === 'Finance' && <FinancePage onRun={runAction} />}{activePage === 'Sales & CRM' && <CrmPage deals={deals} setDeals={setDeals} />}{activePage === 'People' && <PeoplePage />}{activePage === 'Inventory' && <InventoryPage onRestock={restock} stock={stock} />}{activePage === 'Analytics' && <AnalyticsPage />}</div><footer className="app-footer"><span><i className="health-dot mint" />All systems operational</span><span>© 2026 Nexus business ERP SaaS OS <span className="footer-separator">·</span> Built for better business</span></footer></main>
+    <main className="main-area">
+      <header className="topbar">
+        <div className="breadcrumb"><span>{workspace}</span><span>/</span><strong>{arabicNavigation[activePage]}</strong></div>
+        <div className="topbar-actions">
+          <button className="search-trigger" onClick={() => setCommandOpen(true)}><Icon name="search" size={16} /><span>ابحث في مساحة العمل</span><kbd>⌘ K</kbd></button>
+          <button className="icon-button theme-toggle" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} /></button>
+          <button className="icon-button notification-button" aria-label="الإشعارات"><Icon name="bell" size={17} /><i /></button>
+          <span className="topbar-divider" /><div className="topbar-profile"><span className="profile-avatar">AM</span><Icon name="chevron" size={14} /></div>
+        </div>
+      </header>
+      <div className="page-content">
+        {activePage === 'Overview' && <OverviewPage onRun={runAction} />}
+        {activePage === 'AI assistant' && <AssistantPage onRun={runAction} execution={execution} />}
+        {activePage === 'Finance' && <FinancePage onRun={runAction} />}
+        {activePage === 'Sales & CRM' && <CrmPage deals={deals} setDeals={setDeals} />}
+        {activePage === 'People' && <PeoplePage />}
+        {activePage === 'Inventory' && <InventoryPage onRestock={restock} stock={stock} />}
+        {activePage === 'Analytics' && <AnalyticsPage />}
+      </div>
+      <footer className="app-footer"><span><i className="health-dot mint" />All systems operational</span><span>© 2026 Nexus business ERP SaaS OS <span className="footer-separator">·</span> Built for better business</span></footer>
+    </main>
+    {activePage !== 'Overview' && activePage !== 'AI assistant' && <AssistantDock page={activePage} onRun={runAction} />}
     <button className={`system-tray-button ${workflows.some((workflow) => workflow.state === 'running') ? 'has-running' : ''}`} onClick={() => setTrayOpen((open) => !open)} aria-label={`Background workflows${workflows.some((workflow) => workflow.state === 'running') ? ', running' : ''}`}><span className="tray-pulse" /><Icon name="command" size={17} />{workflows.some((workflow) => workflow.state === 'running') && <i />}</button>
     {trayOpen && <div className="workflow-tray"><div className="tray-heading"><div><strong>Background activity</strong><span>{workflows.filter((workflow) => workflow.state === 'running').length} running</span></div><button className="icon-button" onClick={() => setTrayOpen(false)} aria-label="Close activity panel"><Icon name="close" size={16} /></button></div>{workflows.length ? workflows.map((workflow) => <div className="workflow-item" key={workflow.id}><span className={`workflow-status ${workflow.state}`}><Icon name={workflow.state === 'complete' ? 'check' : 'clock'} size={14} /></span><span><strong>{workflow.title}</strong><small>{workflow.state === 'complete' ? 'Completed' : 'Working in the background'} · {workflow.time}</small></span></div>) : <p className="empty-state">Your background activity will appear here.</p>}</div>}
     {commandOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}><section className="command-modal" role="dialog" aria-modal="true" aria-label="Search Nexus"><div className="command-input"><Icon name="search" size={19} /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search pages and tools…" /><kbd>ESC</kbd></div><span className="command-caption">PAGES & WORKSPACES</span>{filteredNavigation.map((item) => <button className="command-result" key={item.id} onClick={() => { setActivePage(item.id); setCommandOpen(false); setSearch(''); }}><span className="command-icon"><Icon name={item.icon} size={16} /></span>{item.id}<kbd>↵</kbd></button>)}{filteredNavigation.length === 0 && <p className="empty-state">No matching pages. Try another search.</p>}<div className="command-hint"><Icon name="command" size={14} />Nexus global search <span>Search your business, naturally.</span></div></section></div>}
