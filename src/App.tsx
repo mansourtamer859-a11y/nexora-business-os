@@ -1,443 +1,364 @@
-:root {
-  font-family: Inter, 'Segoe UI', sans-serif;
-  color: #e5edf7;
-  background: #09111d;
-  line-height: 1.5;
-  font-weight: 500;
-  color-scheme: dark;
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+
+type PageId = 'Overview' | 'AI assistant' | 'Finance' | 'Sales & CRM' | 'People' | 'Inventory' | 'Analytics';
+type IconName = 'grid' | 'spark' | 'wallet' | 'users' | 'briefcase' | 'boxes' | 'chart' | 'search' | 'bell' | 'chevron' | 'arrow' | 'mic' | 'play' | 'clock' | 'check' | 'plus' | 'more' | 'sun' | 'moon' | 'command' | 'trend' | 'close';
+type Stage = 'Qualified' | 'Proposal' | 'Negotiation' | 'Won';
+type Deal = { id: number; company: string; contact: string; value: number; stage: Stage; color: string };
+type Workflow = { id: number; title: string; state: 'running' | 'complete'; time: string };
+type AccessStage = 'perimeter' | 'login' | 'workspace';
+
+const perimeterDemoToken = '#117007';
+const arabicNavigation: Record<PageId, string> = {
+  Overview: 'نظرة عامة',
+  'AI assistant': 'مساعد Nexus',
+  Finance: 'الإدارة المالية',
+  'Sales & CRM': 'إدارة المتجر',
+  People: 'الموارد البشرية',
+  Inventory: 'إدارة المخزون',
+  Analytics: 'أحدث الأنشطة',
+};
+
+const navigation: { id: PageId; icon: IconName; group: string }[] = [
+  { id: 'Overview', icon: 'grid', group: 'WORKSPACE' },
+  { id: 'AI assistant', icon: 'spark', group: 'WORKSPACE' },
+  { id: 'Finance', icon: 'wallet', group: 'BUSINESS' },
+  { id: 'Sales & CRM', icon: 'users', group: 'BUSINESS' },
+  { id: 'People', icon: 'briefcase', group: 'BUSINESS' },
+  { id: 'Inventory', icon: 'boxes', group: 'BUSINESS' },
+  { id: 'Analytics', icon: 'chart', group: 'INSIGHTS' },
+];
+
+const iconContent: Record<IconName, ReactNode> = {
+  grid: <><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></>,
+  spark: <><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" /><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" /></>,
+  wallet: <><rect x="3" y="5" width="18" height="15" rx="3" /><path d="M3 9h18" /><path d="M16 14h2" /></>,
+  users: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></>,
+  briefcase: <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></>,
+  boxes: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 8 9 5 9-5M3 8v9l9 5 9-5V8M12 13v9" /></>,
+  chart: <><path d="M3 3v18h18" /><path d="m7 14 4-4 4 3 6-7" /><path d="M17 6h4v4" /></>,
+  search: <><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.5 4.5" /></>,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
+  chevron: <path d="m7 10 5 5 5-5" />,
+  arrow: <><path d="M7 17 17 7" /><path d="M7 7h10v10" /></>,
+  mic: <><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8" /></>,
+  play: <path d="m8 5 12 7-12 7V5Z" />,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  check: <path d="m5 12 4 4L19 6" />,
+  plus: <><path d="M12 5v14M5 12h14" /></>,
+  more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></>,
+  moon: <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />,
+  command: <><path d="M9 7V5a2 2 0 1 0-2 2h10a2 2 0 1 0-2-2v14a2 2 0 1 0 2-2H7a2 2 0 1 0 2 2V7Z" /></>,
+  trend: <><path d="m3 17 6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+  close: <><path d="m18 6-12 12M6 6l12 12" /></>,
+};
+
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{iconContent[name]}</svg>;
 }
 
-* {
-  box-sizing: border-box;
+const prompts = [
+  'Generate quarter sales report',
+  'Audit payroll operations',
+  'Show low-stock inventory',
+  'Summarize this week’s cash flow',
+];
+
+const initialDeals: Deal[] = [
+  { id: 1, company: 'Linear Labs', contact: 'Maya Chen', value: 24800, stage: 'Qualified', color: 'lilac' },
+  { id: 2, company: 'Northstar Health', contact: 'James Wilson', value: 18600, stage: 'Qualified', color: 'blue' },
+  { id: 3, company: 'Meridian Studio', contact: 'Sofia Patel', value: 34200, stage: 'Proposal', color: 'orange' },
+  { id: 4, company: 'Atlas Commerce', contact: 'Oliver Kim', value: 12500, stage: 'Proposal', color: 'green' },
+  { id: 5, company: 'Solstice Group', contact: 'Eva Laurent', value: 41600, stage: 'Negotiation', color: 'pink' },
+  { id: 6, company: 'Form & Field', contact: 'Leo Martin', value: 22000, stage: 'Negotiation', color: 'yellow' },
+  { id: 7, company: 'Verde Systems', contact: 'Noah Brooks', value: 31200, stage: 'Won', color: 'green' },
+];
+
+function PageHeading({ page, description, action }: { page: string; description: string; action?: ReactNode }) {
+  return <div className="page-heading"><div><p className="eyebrow">{page === 'Overview' ? 'NEXUS BUSINESS ERP SAAS OS · MONDAY, OCTOBER 23, 2026' : 'NEXUS BUSINESS ERP SAAS OS'}</p><h1>{page === 'Overview' ? 'Good morning, Alex' : page}</h1><p className="heading-description">{description}</p></div>{action}</div>;
 }
 
-html, body, #root {
-  margin: 0;
-  min-height: 100%;
-  min-height: 100vh;
-  background: radial-gradient(circle at top, rgba(26, 86, 138, 0.35), transparent 32%), #09111d;
+function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; value: string; delta: string; icon: IconName; tone?: string }) {
+  const [points, setPoints] = useState(() => Array.from({ length: 12 }, (_, index) => 34 + ((index * 17 + label.length * 11) % 52)));
+  const line = points.map((point, index) => `${index * 10},${70 - point}`).join(' ');
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setPoints((current) => [...current.slice(1), Math.max(24, Math.min(86, current[current.length - 1] + Math.round(Math.random() * 18 - 8)))]);
+    }, 2400);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <article className="metric-card"><div className="metric-top"><span>{label}</span><span className={`metric-icon ${tone}`}><Icon name={icon} size={17} /></span></div><div className="metric-value">{value}</div><div className="metric-sparkline" aria-hidden="true"><svg viewBox="0 0 110 70" preserveAspectRatio="none"><polyline points={line} /></svg></div><div className="metric-foot"><span className="trend"><Icon name="trend" size={13} />{delta}</span><span>vs last month</span></div></article>;
 }
 
-button, input {
-  font: inherit;
+function PerimeterGate({ onUnlock }: { onUnlock: () => void }) {
+  const [token, setToken] = useState('');
+  const [state, setState] = useState<'idle' | 'denied' | 'verified'>('idle');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (state !== 'verified') return undefined;
+    const timer = window.setTimeout(onUnlock, 620);
+    return () => window.clearTimeout(timer);
+  }, [state, onUnlock]);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    window.setTimeout(() => {
+      setBusy(false);
+      if (token === perimeterDemoToken) setState('verified');
+      else {
+        setState('denied');
+        window.setTimeout(() => setState((current) => current === 'denied' ? 'idle' : current), 750);
+      }
+    }, 250);
+  };
+
+  return <main className={`security-screen perimeter-screen ${state === 'verified' ? 'gate-verified' : ''}`}><div className="security-grain" /><div className="security-orb" /><section className={`security-card perimeter-card ${state === 'denied' ? 'gate-denied' : ''}`}><div className="security-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXUS<span>BUSINESS ERP SAAS OS</span></span></div><div className="security-emblem"><span /><Icon name="command" size={22} /><i /></div><p className="security-overline">CONTROLLED ACCESS · DEMO ENVIRONMENT</p><h1>Establish a secure link.</h1><p className="security-description">Enter the workspace demonstration token to continue to the Nexus sign-in suite.</p><form onSubmit={submit} className="perimeter-form"><label htmlFor="access-token">GLOBAL ACCESS TOKEN</label><div className={`token-input ${state === 'denied' ? 'invalid' : ''} ${state === 'verified' ? 'valid' : ''}`}><Icon name="command" size={18} /><input id="access-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(event) => { setToken(event.target.value); setState('idle'); }} placeholder="Enter demonstration token" aria-describedby="gate-feedback" aria-invalid={state === 'denied'} /><span className="input-lock">LOCAL</span></div><p id="gate-feedback" className={`gate-feedback ${state}`}>{state === 'denied' ? 'Secure Link Denied · Token not recognized' : state === 'verified' ? 'Demo token verified · Opening sign-in…' : 'Local demo validation · No token is transmitted'}</p><button className="gate-submit" disabled={busy || state === 'verified'}>{busy ? 'Verifying link…' : state === 'verified' ? 'Access granted' : 'Verify secure link'}<Icon name={state === 'verified' ? 'check' : 'arrow'} size={16} /></button></form><div className="security-footnote"><span><i />DEMO ACCESS GATE</span><span>CLIENT-SIDE ONLY · NOT AUTHENTICATION</span></div><p className="security-disclaimer">This prototype token is visible in the browser bundle. Do not use this gate to protect production systems or sensitive data.</p></section><span className="security-corner">NEXUS SYSTEMS <i /> GATEWAY 01</span></main>;
 }
 
-button {
-  cursor: pointer;
+function EnterpriseLogin({ onLogin }: { onLogin: (email: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    if (!event.currentTarget.reportValidity()) return;
+    if (password.length < 8) {
+      setError('Use at least 8 characters for the demo password.');
+      return;
+    }
+    setSubmitting(true);
+    window.setTimeout(() => {
+      setSubmitting(false);
+      onLogin(email);
+    }, 450);
+  };
+
+  return <main className="security-screen login-screen"><div className="login-glow" /><section className="login-card"><div className="login-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXUS<span>BUSINESS ERP SAAS OS</span></span></div><div className="login-heading"><span className="login-overline">YOUR BUSINESS, IN SYNC</span><h1>Welcome back.</h1><p>Sign in to your workspace to pick up where you left off.</p></div><form className="login-form" onSubmit={submit}><label className="floating-field"><input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder=" " /><span>Corporate email</span><i className={email.includes('@') ? 'field-valid' : ''}>{email.includes('@') ? <Icon name="check" size={15} /> : <Icon name="users" size={15} />}</i></label><label className="floating-field"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder=" " /><span>Encrypted password</span><button className="password-toggle" type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? 'Hide' : 'Show'}</button></label><div className="login-options"><label><input type="checkbox" />Remember this device</label><button type="button" onClick={() => setError('Password recovery requires a production identity provider.')}>Forgot password?</button></div>{error && <p className="login-error" role="alert">{error}</p>}<button className="login-submit" disabled={submitting}>{submitting ? 'Connecting to workspace…' : 'Sign in securely'}<Icon name="arrow" size={16} /></button></form><div className="login-divider"><span>OR CONTINUE WITH</span></div><button className="google-login" onClick={() => { setError(''); setSubmitting(true); window.setTimeout(() => { setSubmitting(false); onLogin('alex.morgan@example.com'); }, 450); }}><span className="google-g">G</span>Sign in with Google<Icon name="arrow" size={14} /></button><div className="oauth-badge"><span className="oauth-lock"><Icon name="command" size={15} /></span><span><strong>Federated identity · Demo simulation</strong><small>Production Google Cloud OAuth requires server-side provider configuration.</small></span><Icon name="check" size={14} /></div><div className="login-footer"><span><i />DEMO SIGN-IN · NO CREDENTIALS ARE SENT</span><button onClick={() => window.location.reload()}>Return to access gate</button></div></section></main>;
 }
 
-body {
-  min-height: 100vh;
+function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <section className={`panel ${className}`}>{children}</section>;
 }
 
-.loading-shell,
-.error-shell,
-.auth-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  background: #09111d;
+function PanelTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+  return <div className="panel-title"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{action}</div>;
 }
 
-.auth-card,
-.error-card {
-  width: min(100%, 560px);
-  background: rgba(12, 21, 32, 0.92);
-  border: 1px solid rgba(143, 162, 184, 0.18);
-  border-radius: 24px;
-  padding: clamp(1.25rem, 2vw, 2rem);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+function RevenueChart() {
+  const bars = [38, 52, 45, 68, 56, 72, 61, 82, 68, 88, 75, 96];
+  return <div className="revenue-chart" role="img" aria-label="Monthly recurring revenue trending upward from January to December"><div className="chart-y-labels"><span>$240k</span><span>$180k</span><span>$120k</span><span>$60k</span></div><div className="chart-main"><div className="chart-grid"><i /><i /><i /><i /></div><svg className="chart-line" viewBox="0 0 720 190" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity=".22" /><stop offset="100%" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs><path d="M0 155 C30 147 38 130 65 139 S110 128 130 113 S170 125 196 103 S238 111 260 92 S305 109 325 79 S370 90 392 65 S435 82 455 54 S500 72 520 48 S560 59 586 34 S630 45 650 21 S690 27 720 10 V190 H0 Z" fill="url(#area-fill)" /><path d="M0 155 C30 147 38 130 65 139 S110 128 130 113 S170 125 196 103 S238 111 260 92 S305 109 325 79 S370 90 392 65 S435 82 455 54 S500 72 520 48 S560 59 586 34 S630 45 650 21 S690 27 720 10" fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></svg><div className="chart-x-labels">{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month) => <span key={month}>{month}</span>)}</div></div></div>;
 }
 
-.auth-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
+function VoiceAssistant({ onRun }: { onRun: (prompt: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+
+  useEffect(() => {
+    if (!listening) return undefined;
+    const timer = window.setTimeout(() => {
+      setTranscript(prompts[0]);
+      setListening(false);
+      onRun(prompts[0]);
+    }, 2100);
+    return () => window.clearTimeout(timer);
+  }, [listening, onRun]);
+
+  return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXUS INTELLIGENCE</span><h2>Your business,<br />in a conversation.</h2><p>Ask anything across your workspace. Nexus connects the dots and turns insight into action.</p><div className="voice-transcript">{transcript ? <><span>YOU SAID</span><p>“{transcript}”</p></> : <span>Try a prompt or tap the mic to speak</span>}</div><div className="prompt-list">{prompts.slice(0, 2).map((prompt) => <button key={prompt} onClick={() => { setTranscript(prompt); onRun(prompt); }}>{prompt}<Icon name="arrow" size={14} /></button>)}</div></div><div className={`voice-visual ${listening ? 'listening' : ''}`}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 27 }, (_, index) => <i key={index} style={{ '--bar': `${15 + ((index * 19) % 65)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={() => setListening((current) => !current)} aria-label={listening ? 'Stop listening' : 'Start listening'}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{listening ? 'LISTENING…' : 'TAP TO SPEAK'}</span></div></Panel>;
 }
 
-.brand-row {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
+function OverviewPage({ onRun, reportGenerated }: { onRun: (prompt: string) => void; reportGenerated: boolean }) {
+  return <><PageHeading page="Overview" description="Here’s what’s happening across your workspace today." action={<button className="button button-primary" onClick={() => onRun(prompts[0])}><Icon name="plus" size={16} />{reportGenerated ? 'Report ready' : 'Generate report'}</button>} /><div className="metrics-grid"><Metric label="Total revenue" value="$284,590" delta="+12.8%" icon="wallet" /><Metric label="Active customers" value="2,840" delta="+8.2%" icon="users" tone="violet" /><Metric label="Monthly recurring" value="$48,290" delta="+14.6%" icon="trend" tone="blue" /><Metric label="Open opportunities" value="$186,400" delta="+4.3%" icon="chart" tone="amber" /></div><div className="dashboard-grid"><Panel className="revenue-panel"><PanelTitle title="Revenue overview" subtitle="Your revenue is up 12.8% from last year" action={<select aria-label="Revenue period" defaultValue="12 months"><option>12 months</option><option>6 months</option><option>30 days</option></select>} /><div className="chart-key"><span><i className="key-dot" />Revenue</span><b>$284,590 <small>+12.8%</small></b></div><RevenueChart /></Panel><VoiceAssistant onRun={onRun} /><Panel className="activity-panel"><PanelTitle title="Recent activity" action={<button className="text-button">View all <Icon name="arrow" size={14} /></button>} /><div className="activity-list"><Activity icon="check" title="Invoice paid" detail="INV-2026-084 · Meridian Studio" time="2 min ago" /><Activity icon="users" title="New customer added" detail="Riley Cooper · Northstar Health" time="18 min ago" /><Activity icon="boxes" title="Stock running low" detail="Wireless Headset · 8 remaining" time="1 hr ago" /><Activity icon="chart" title="Quarterly report ready" detail={reportGenerated ? 'Q4 sales report · just now' : 'Q3 sales report · Finance'} time={reportGenerated ? 'just now' : '3 hrs ago'} /></div></Panel><Panel className="pipeline-panel"><PanelTitle title="Sales pipeline" subtitle="Opportunity value by stage" action={<button className="text-button" onClick={() => window.dispatchEvent(new CustomEvent('nexus:navigate', { detail: 'Sales & CRM' }))}>Open pipeline <Icon name="arrow" size={14} /></button>} /><div className="pipeline-bars">{[['Qualified', 76, '$42.8k'], ['Proposal', 55, '$68.2k'], ['Negotiation', 34, '$51.4k'], ['Won', 63, '$24.0k']].map(([label, percent, value]) => <div className="pipeline-row" key={String(label)}><span>{label}</span><div className="pipeline-track"><i style={{ width: `${percent}%` }} /></div><b>{value}</b></div>)}</div></Panel></div></>;
 }
 
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #78e7d4, #49a7ff);
-  color: #03131c;
-  font-weight: 800;
+function ArabicOperations() {
+  const [stream, setStream] = useState(0);
+  const [completed, setCompleted] = useState<string[]>([]);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setStream((current) => current + 1), 7000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const orders = [
+    { number: 'NX-2841', customer: 'شركة مدار للتقنية', product: 'خطة الأعمال · سنوي', amount: '١٢٬٤٠٠ ر.س', state: 'قيد التنفيذ', tone: 'blue' },
+    { number: 'NX-2840', customer: 'مؤسسة أفق الإبداع', product: 'خطة النمو · شهري', amount: '٢٬٨٥٠ ر.س', state: 'تم الدفع', tone: 'mint' },
+    { number: `NX-${2839 - stream}`, customer: 'مجموعة روافد', product: 'ترخيص مؤسسي', amount: '١٨٬٩٠٠ ر.س', state: 'مراجعة', tone: 'amber' },
+  ];
+  const tasks = [
+    { id: 'invoice', title: 'مراجعة الفواتير المستحقة', detail: '٣ فواتير · أولوية عالية', tone: 'urgent' },
+    { id: 'inventory', title: 'اعتماد طلب إعادة المخزون', detail: 'مخزون منخفض · قبل ١٢:٠٠ م', tone: 'normal' },
+    { id: 'meeting', title: 'اجتماع فريق المبيعات', detail: 'اليوم · ٢:٣٠ م', tone: 'normal' },
+  ];
+  const alerts = [
+    { id: 'stock', title: 'تنبيه انخفاض المخزون', detail: 'سماعات لاسلكية · ٨ وحدات متبقية', tone: 'amber' },
+    { id: 'invoice', title: 'فاتورة تجاوزت موعد الاستحقاق', detail: 'INV-2026-082 · ٨٬٢٠٠ ر.س', tone: 'rose' },
+    { id: 'uptime', title: 'جميع الأنظمة تعمل بشكل طبيعي', detail: 'آخر فحص قبل لحظات', tone: 'mint' },
+  ];
+  return <section className="arabic-operations" dir="rtl" aria-label="لوحة العمليات باللغة العربية"><header className="arabic-section-heading"><div><span className="arabic-live-dot" />تحديثات مباشرة <span>· آخر تحديث الآن</span></div><span className="arabic-stream-count">تدفق مباشر <i /></span></header><div className="arabic-grid"><section className="arabic-card orders-card"><header><div><h2>أحدث الطلبات</h2><p>متابعة الطلبات والتحصيلات</p></div><button onClick={() => window.dispatchEvent(new CustomEvent('nexus:navigate', { detail: 'Sales & CRM' }))}>عرض الكل <Icon name="arrow" size={14} /></button></header><div className="arabic-orders">{orders.map((order) => <article key={order.number}><span className="order-glyph"><Icon name="boxes" size={16} /></span><span className="order-details"><strong>{order.customer}</strong><small>{order.number} · {order.product}</small></span><span className="order-price"><strong>{order.amount}</strong><small className={`arabic-status ${order.tone}`}>{order.state}</small></span></article>)}</div><div className="orders-live-note"><span className="arabic-live-dot" />تمت مزامنة {stream + 3} طلبات اليوم</div></section><section className="arabic-card tasks-card"><header><div><h2>المواعيد والمهام</h2><p>أولويات فريقك لهذا اليوم</p></div><span className="task-count">{tasks.length - completed.length} مهام</span></header><div className="arabic-tasks">{tasks.map((task) => <label className={`arabic-task ${completed.includes(task.id) ? 'task-complete' : ''}`} key={task.id}><input type="checkbox" checked={completed.includes(task.id)} onChange={() => setCompleted((current) => current.includes(task.id) ? current.filter((id) => id !== task.id) : [...current, task.id])} /><span className={`task-priority ${task.tone}`} /><span><strong>{task.title}</strong><small>{task.detail}</small></span></label>)}</div><button className="add-task-button" onClick={() => setCompleted([])}><Icon name="plus" size={14} /> إعادة تعيين قائمة المهام</button></section><section className="arabic-card alerts-card"><header><div><h2>تنبيهات ذكية</h2><p>إشعارات تتطلب انتباهك</p></div><span className="alert-count">{alerts.filter((alert) => !dismissed.includes(alert.id)).length}</span></header><div className="arabic-alerts">{alerts.filter((alert) => !dismissed.includes(alert.id)).map((alert) => <article className={`arabic-alert ${alert.tone}`} key={alert.id}><i /><span><strong>{alert.title}</strong><small>{alert.detail}</small></span><button aria-label={`إخفاء التنبيه: ${alert.title}`} onClick={() => setDismissed((current) => [...current, alert.id])}>×</button></article>)}</div></section></div></section>;
 }
 
-.eyebrow {
-  margin: 0;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  color: #89b4d7;
+function Activity({ icon, title, detail, time }: { icon: IconName; title: string; detail: string; time: string }) {
+  return <div className="activity-item"><span className="activity-icon"><Icon name={icon} size={16} /></span><div className="activity-copy"><strong>{title}</strong><span>{detail}</span></div><time>{time}</time></div>;
 }
 
-h1, h2, h3, p {
-  margin-top: 0;
+function AssistantPage({ onRun, execution }: { onRun: (prompt: string) => void; execution: string }) {
+  return <><PageHeading page="AI assistant" description="A capable partner for the questions and work that move your business forward." /><div className="assistant-layout"><VoiceAssistant onRun={onRun} /><Panel className="execution-panel"><PanelTitle title="Execution stream" subtitle="Live activity from your AI workspace" action={<span className="live-badge"><i />LIVE</span>} /><div className="execution-list"><Activity icon="check" title="Workspace context loaded" detail="Finance, CRM, People & inventory connected" time="now" /><Activity icon="spark" title={execution || 'Ready when you are'} detail={execution ? 'Action completed successfully' : 'Try a prompt to run your first action'} time={execution ? 'just now' : '—'} /><Activity icon="clock" title="Secure data connection" detail="Your workspace data stays in your account" time="active" /></div><div className="assistant-suggestions"><h3>QUICK ACTIONS</h3>{prompts.map((prompt) => <button key={prompt} onClick={() => onRun(prompt)}>{prompt}<Icon name="arrow" size={14} /></button>)}</div></Panel></div></>;
 }
 
-h1, h2, h3 {
-  margin-bottom: 0;
+function FinanceContent({ onRun }: { onRun: (prompt: string) => void }) {
+  return <><PageHeading page="Finance" description="A clear picture of revenue, invoices, and the health of your business." action={<button className="button button-primary" onClick={() => onRun(prompts[3])}><Icon name="plus" size={16} />New transaction</button>} /><div className="metrics-grid"><Metric label="Cash balance" value="$184,290" delta="+8.4%" icon="wallet" /><Metric label="Monthly recurring" value="$48,290" delta="+14.6%" icon="trend" tone="violet" /><Metric label="Outstanding invoices" value="$12,840" delta="3 overdue" icon="clock" tone="amber" /><Metric label="Operating expenses" value="$32,610" delta="−2.1%" icon="chart" tone="blue" /></div><div className="dashboard-grid"><Panel className="revenue-panel"><PanelTitle title="Cash flow" subtitle="Inflow and outflow, year to date" action={<select aria-label="Cash flow period" defaultValue="This year"><option>This year</option><option>This quarter</option></select>} /><div className="cashflow-chart">{[54, 64, 43, 72, 59, 86, 68, 91, 60, 78, 88, 96].map((height, i) => <div className="cashflow-month" key={i}><div><i style={{ height: `${height}%` }} /><b style={{ height: `${Math.max(22, height - 24)}%` }} /></div><span>{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}</span></div>)}</div><div className="legend"><span><i className="key-dot" />Income</span><span><i className="key-dot expense" />Expenses</span></div></Panel><Panel><PanelTitle title="Expense breakdown" subtitle="This month" /><div className="expense-visual"><div className="donut-chart"><div><strong>$32.6k</strong><span>Total spend</span></div></div><div className="expense-list"><Expense label="Payroll" amount="$18,420" percent="56%" color="mint" /><Expense label="Operations" amount="$8,240" percent="25%" color="blue" /><Expense label="Marketing" amount="$4,560" percent="14%" color="violet" /><Expense label="Other" amount="$1,390" percent="5%" color="amber" /></div></div></Panel><Panel className="wide-panel"><PanelTitle title="Recent invoices" subtitle="Track payments and follow up on outstanding balances" action={<button className="text-button">All invoices <Icon name="arrow" size={14} /></button>} /><div className="table-wrap"><table><thead><tr><th>INVOICE</th><th>CUSTOMER</th><th>DATE</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>{[['INV-2026-084', 'Meridian Studio', 'Oct 22, 2026', '$4,800', 'Paid'], ['INV-2026-083', 'Northstar Health', 'Oct 21, 2026', '$2,400', 'Pending'], ['INV-2026-082', 'Atlas Commerce', 'Oct 19, 2026', '$8,200', 'Overdue'], ['INV-2026-081', 'Solstice Group', 'Oct 18, 2026', '$3,600', 'Paid']].map((row) => <tr key={row[0]}><td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><span className={`status-pill ${row[4].toLowerCase()}`}>{row[4]}</span></td></tr>)}</tbody></table></div></Panel></div></>;
 }
 
-.primary-button,
-.secondary-button,
-.nav-item {
-  border: 0;
-  border-radius: 12px;
-  transition: transform 0.2s ease;
+function FinancePage({ onRun }: { onRun: (prompt: string) => void }) {
+  return <><FinanceContent onRun={onRun} /><Panel><PanelTitle title="Subscription lifecycle" subtitle="Recurring plans renewing across your workspace" /><div className="table-wrap"><table><thead><tr><th>SUBSCRIPTION</th><th>CUSTOMER</th><th>RENEWAL</th><th>MONTHLY VALUE</th><th>STATUS</th></tr></thead><tbody>{[['Growth plan', 'Meridian Studio', 'Oct 28, 2026', '$1,200', 'Active'], ['Business plan', 'Northstar Health', 'Nov 02, 2026', '$840', 'Active'], ['Starter plan', 'Atlas Commerce', 'Nov 05, 2026', '$240', 'Trial'], ['Enterprise plan', 'Solstice Group', 'Oct 26, 2026', '$2,400', 'Active']].map((row) => <tr key={row[0]}><td>{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td><span className={`status-pill ${row[4] === 'Active' ? 'paid' : 'pending'}`}>{row[4]}</span></td></tr>)}</tbody></table></div></Panel></>;
 }
 
-.primary-button {
-  background: linear-gradient(135deg, #7ae1d1, #5aa7ff);
-  color: #03131c;
-  font-weight: 700;
-  padding: 0.9rem 1.5rem;
+function Expense({ label, amount, percent, color }: { label: string; amount: string; percent: string; color: string }) {
+  return <div className="expense-item"><span className={`key-dot ${color}`} /><span>{label}</span><strong>{amount}</strong><small>{percent}</small></div>;
 }
 
-.secondary-button {
-  background: rgba(146, 176, 214, 0.08);
-  color: #e5edf7;
-  border: 1px solid rgba(146, 176, 214, 0.2);
-  padding: 0.85rem 1.25rem;
+function CrmPage({ deals, setDeals }: { deals: Deal[]; setDeals: (deals: Deal[]) => void }) {
+  const stages: Stage[] = ['Qualified', 'Proposal', 'Negotiation', 'Won'];
+  const [dragged, setDragged] = useState<number | null>(null);
+  const moveDeal = (id: number, direction: number) => setDeals(deals.map((deal) => {
+    if (deal.id !== id) return deal;
+    return { ...deal, stage: stages[Math.max(0, Math.min(stages.length - 1, stages.indexOf(deal.stage) + direction))] };
+  }));
+  return <><PageHeading page="Sales & CRM" description="Build relationships, move deals forward, and grow your pipeline." action={<button className="button button-primary" onClick={() => setDeals([...deals, { id: Date.now(), company: 'New opportunity', contact: 'Add a contact', value: 9800, stage: 'Qualified', color: 'blue' }])}><Icon name="plus" size={16} />Add opportunity</button>} /><div className="crm-summary"><span><b>{deals.length}</b> open opportunities</span><span>Pipeline value <b>${deals.reduce((sum, deal) => sum + deal.value, 0).toLocaleString()}</b></span><span>Win rate <b>32.8%</b></span></div><div className="kanban-board">{stages.map((stage, stageIndex) => <section className="kanban-column" key={stage} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragged !== null) setDeals(deals.map((deal) => deal.id === dragged ? { ...deal, stage } : deal)); setDragged(null); }}><div className="kanban-heading"><span className={`stage-dot stage-${stageIndex}`} />{stage}<span>{deals.filter((deal) => deal.stage === stage).length}</span><button aria-label={`Add deal to ${stage}`} onClick={() => setDeals([...deals, { id: Date.now(), company: 'New opportunity', contact: 'Add a contact', value: 9800, stage, color: 'blue' }])}><Icon name="plus" size={15} /></button></div>{deals.filter((deal) => deal.stage === stage).map((deal) => <article className="deal-card" key={deal.id} draggable onDragStart={() => setDragged(deal.id)} onDragEnd={() => setDragged(null)}><div className="deal-top"><span className={`company-avatar ${deal.color}`}>{deal.company.charAt(0)}</span><button aria-label={`More options for ${deal.company}`} className="icon-button"><Icon name="more" size={16} /></button></div><strong>{deal.company}</strong><span className="deal-contact">{deal.contact}</span><div className="deal-value">${deal.value.toLocaleString()}</div><div className="deal-footer"><span className="contact-avatar">{deal.contact.split(' ').map((part) => part[0]).join('')}</span><span>Updated today</span><div className="deal-controls"><button aria-label="Move deal to previous stage" disabled={stageIndex === 0} onClick={() => moveDeal(deal.id, -1)}>‹</button><button aria-label="Move deal to next stage" disabled={stageIndex === stages.length - 1} onClick={() => moveDeal(deal.id, 1)}>›</button></div></div></article>)}</section>)}</div></>;
 }
 
-.primary-button:hover,
-.secondary-button:hover,
-.nav-item:hover {
-  transform: translateY(-1px);
+const employees = [
+  { name: 'Alex Morgan', title: 'Chief Executive Officer', team: 'Leadership', initials: 'AM', color: 'lilac', status: 'In office' },
+  { name: 'Maya Chen', title: 'VP of Product', team: 'Product', initials: 'MC', color: 'blue', status: 'In office' },
+  { name: 'James Wilson', title: 'Finance Director', team: 'Finance', initials: 'JW', color: 'orange', status: 'Remote' },
+  { name: 'Sofia Patel', title: 'People Operations Lead', team: 'People', initials: 'SP', color: 'green', status: 'In office' },
+  { name: 'Oliver Kim', title: 'Engineering Lead', team: 'Engineering', initials: 'OK', color: 'pink', status: 'Remote' },
+  { name: 'Eva Laurent', title: 'Growth Marketing', team: 'Marketing', initials: 'EL', color: 'yellow', status: 'In office' },
+];
+
+function PeoplePage() {
+  const [team, setTeam] = useState(employees);
+  return <><PageHeading page="People" description="Your people operations, thoughtfully organized." action={<button className="button button-primary" onClick={() => setTeam((current) => [...current, { name: `New teammate ${current.length - employees.length + 1}`, title: 'New team member', team: 'Unassigned', initials: 'NT', color: 'blue', status: 'Invited' }])}><Icon name="plus" size={16} />Add employee</button>} /><div className="metrics-grid"><Metric label="Team members" value={`${48 + team.length - employees.length}`} delta="+4 this quarter" icon="users" /><Metric label="Payroll this month" value="$286,400" delta="Processed Oct 20" icon="wallet" tone="violet" /><Metric label="On leave today" value="3" delta="Across 2 teams" icon="clock" tone="amber" /><Metric label="Open positions" value="6" delta="2 new this month" icon="briefcase" tone="blue" /></div><Panel><PanelTitle title="Team directory" subtitle="Meet the people who make it happen" action={<input className="table-search" placeholder="Search team…" aria-label="Search team" />} /><div className="employee-grid">{team.map((person) => <article className="employee-card" key={person.name}><div className={`employee-avatar ${person.color}`}>{person.initials}</div><strong>{person.name}</strong><span>{person.title}</span><div className="employee-meta"><span>{person.team}</span><span className="presence"><i />{person.status}</span></div></article>)}</div></Panel><Panel><PanelTitle title="Today’s schedule" subtitle="Thursday, October 23" action={<button className="text-button">View calendar <Icon name="arrow" size={14} /></button>} /><div className="schedule-list"><Schedule time="09:00" title="Product design sync" team="Product · Maya Chen, Oliver Kim" color="blue" /><Schedule time="10:30" title="Weekly finance review" team="Finance · James Wilson, Alex Morgan" color="mint" /><Schedule time="13:00" title="Candidate interview — Senior Designer" team="People · Sofia Patel" color="violet" /></div></Panel></>;
 }
 
-.app-shell {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  min-height: 100vh;
-  background: rgba(4, 10, 18, 0.65);
+function Schedule({ time, title, team, color }: { time: string; title: string; team: string; color: string }) {
+  return <div className="schedule-row"><time>{time}</time><i className={`schedule-marker ${color}`} /><div><strong>{title}</strong><span>{team}</span></div><button className="icon-button" aria-label="Schedule options"><Icon name="more" size={16} /></button></div>;
 }
 
-.sidebar {
-  border-right: 1px solid rgba(143, 162, 184, 0.14);
-  background: rgba(10, 19, 29, 0.95);
-  padding: 1.25rem 1rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+function InventoryPage({ onRestock, stock }: { onRestock: (name: string) => void; stock: number }) {
+  const items = [{ name: 'Wireless Headset', sku: 'WH-240 · Accessories', stock, target: 25, category: 'Electronics', price: '$89.00' }, { name: 'USB-C Hub Pro', sku: 'HC-110 · Accessories', stock: 34, target: 15, category: 'Electronics', price: '$64.00' }, { name: 'Ergonomic Desk Chair', sku: 'DC-480 · Furniture', stock: 12, target: 10, category: 'Furniture', price: '$320.00' }, { name: 'Standing Desk Frame', sku: 'SF-220 · Furniture', stock: 8, target: 12, category: 'Furniture', price: '$410.00' }, { name: 'Studio Monitor 4K', sku: 'SM-400 · Electronics', stock: 18, target: 8, category: 'Electronics', price: '$580.00' }];
+  return <><PageHeading page="Inventory" description="Know what’s in stock, what’s moving, and what needs attention." action={<button className="button button-primary" onClick={() => onRestock('New inventory item')}><Icon name="plus" size={16} />Add item</button>} /><div className="metrics-grid"><Metric label="Total assets" value="1,284" delta="Across 8 categories" icon="boxes" /><Metric label="Inventory value" value="$92,640" delta="+6.4%" icon="wallet" tone="violet" /><Metric label="Low stock items" value={stock < 15 ? '2' : '1'} delta="Needs attention" icon="bell" tone="amber" /><Metric label="Open purchase orders" value="4" delta="$12,840 total" icon="briefcase" tone="blue" /></div><Panel><PanelTitle title="Stock overview" subtitle="Track available items and reorder before you run low" action={<button className="text-button">All categories <Icon name="chevron" size={14} /></button>} /><div className="table-wrap"><table><thead><tr><th>ITEM</th><th>SKU</th><th>AVAILABLE</th><th>UNIT PRICE</th><th>STATUS</th><th>ACTION</th></tr></thead><tbody>{items.map((item) => <tr key={item.name}><td><span className="inventory-name"><span className="inventory-icon"><Icon name="boxes" size={16} /></span>{item.name}</span></td><td>{item.sku}</td><td><span className="stock-count">{item.stock} <small>/ {item.target} min</small></span><span className="stock-track"><i className={item.stock <= item.target ? 'low' : ''} style={{ width: `${Math.min(100, item.stock / (item.target * 2) * 100)}%` }} /></span></td><td>{item.price}</td><td><span className={`status-pill ${item.stock <= item.target ? 'overdue' : 'paid'}`}>{item.stock <= item.target ? 'Low stock' : 'In stock'}</span></td><td><button className="text-button" onClick={() => onRestock(item.name)}>{item.stock <= item.target ? 'Reorder' : 'Restock'} <Icon name="arrow" size={13} /></button></td></tr>)}</tbody></table></div></Panel></>;
 }
 
-.sidebar-brand {
-  padding: 0.5rem 0.25rem 1.5rem;
+function AnalyticsPage() {
+  return <><PageHeading page="Analytics" description="A real-time view of the signals shaping your business." action={<button className="button button-secondary"><Icon name="clock" size={15} />Last 30 days <Icon name="chevron" size={14} /></button>} /><div className="metrics-grid"><Metric label="Gross volume" value="$1.24M" delta="+18.2%" icon="trend" /><Metric label="Customer retention" value="94.8%" delta="+2.4%" icon="users" tone="violet" /><Metric label="Avg. order value" value="$482" delta="+6.8%" icon="wallet" tone="blue" /><Metric label="Growth efficiency" value="3.2×" delta="+0.4×" icon="chart" tone="amber" /></div><div className="dashboard-grid"><Panel className="revenue-panel"><PanelTitle title="Performance trends" subtitle="Revenue, customers, and orders over time" /><RevenueChart /></Panel><Panel><PanelTitle title="Revenue by channel" subtitle="Share of total revenue" /><div className="channel-chart"><div className="channel-donut"><span><strong>$284k</strong><small>Total revenue</small></span></div><div className="expense-list"><Expense label="Direct" amount="$142k" percent="50%" color="mint" /><Expense label="Partners" amount="$85k" percent="30%" color="blue" /><Expense label="Organic" amount="$57k" percent="20%" color="violet" /></div></div></Panel><Panel className="wide-panel"><PanelTitle title="Operational health" subtitle="A live overview of connected business functions" /><div className="health-grid">{[['Finance', 'All systems operational', 'mint'], ['Sales & CRM', '7 opportunities active', 'blue'], ['People', '48 team members', 'violet'], ['Inventory', '2 items need attention', 'amber']].map(([name, status, color]) => <div className="health-card" key={name}><span className={`health-icon ${color}`}><Icon name={name === 'Finance' ? 'wallet' : name === 'Sales & CRM' ? 'users' : name === 'People' ? 'briefcase' : 'boxes'} size={18} /></span><strong>{name}</strong><span><i className={`health-dot ${color}`} />{status}</span></div>)}</div></Panel></div></>;
 }
 
-.nav-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+export function App() {
+  const [accessStage, setAccessStage] = useState<AccessStage>('perimeter');
+  const [userEmail, setUserEmail] = useState('alex.morgan@example.com');
+  const [activePage, setActivePage] = useState<PageId>('Overview');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [workspace, setWorkspace] = useState('Acme Studio');
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [execution, setExecution] = useState('');
+  const [reportGenerated, setReportGenerated] = useState(false);
+  const [stock, setStock] = useState(8);
+  const [deals, setDeals] = useState(initialDeals);
+  const [toast, setToast] = useState('');
 
-.nav-item {
-  width: 100%;
-  padding: 0.8rem 0.9rem;
-  text-align: left;
-  background: transparent;
-  color: #d7e7f7;
-  border: 1px solid transparent;
-}
+  const runAction = useCallback((prompt: string) => {
+    const normalized = prompt.toLowerCase();
+    const title = normalized.includes('payroll') ? 'Payroll audit complete' : normalized.includes('inventory') ? 'Inventory review complete' : normalized.includes('cash flow') ? 'Cash flow summary ready' : 'Quarter sales report generated';
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setExecution(title);
+    setWorkflows((current) => [{ id: Date.now(), title, state: 'running' as const, time: now }, ...current].slice(0, 4));
+    if (normalized.includes('sales') || normalized.includes('report')) setReportGenerated(true);
+    if (normalized.includes('payroll')) setToast('Payroll audit complete — no anomalies found.');
+    else if (normalized.includes('inventory')) setToast('Inventory review complete — 2 items need reordering.');
+    else if (normalized.includes('cash flow')) setToast('Cash flow summary is ready for this week.');
+    else setToast('Your Q4 sales report is ready to view.');
+  }, []);
 
-.nav-item.active {
-  background: rgba(90, 167, 255, 0.12);
-  border-color: rgba(122, 225, 209, 0.16);
-}
+  useEffect(() => {
+    const activeWorkflows = workflows.filter((workflow) => workflow.state === 'running');
+    if (!activeWorkflows.length) return undefined;
+    const timers = activeWorkflows.map((workflow) => window.setTimeout(() => {
+      setWorkflows((current) => current.map((item) => item.id === workflow.id ? { ...item, state: 'complete' } : item));
+    }, 2600));
+    return () => timers.forEach(window.clearTimeout);
+  }, [workflows]);
 
-.sidebar-footer {
-  padding: 1rem 0.75rem;
-  border-radius: 12px;
-  background: rgba(122, 225, 209, 0.08);
-  color: #d7e7f7;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(''), 3800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
-.main-content {
-  padding: clamp(1rem, 2vw, 2rem);
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
+  useEffect(() => {
+    const appName = import.meta.env.VITE_APP_NAME || 'Nexus business ERP SaaS OS';
+    document.documentElement.dataset.environment = import.meta.env.VITE_APP_ENVIRONMENT || 'demo';
+    document.title = `${activePage} · ${appName}`;
+  }, [activePage]);
 
-.topbar,
-.panel-header,
-.metric-header,
-.chat-input-row,
-.user-chip,
-.status-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen((open) => !open);
+      }
+      if (event.key === 'Escape') {
+        setCommandOpen(false);
+        setTrayOpen(false);
+      }
+    };
+    const handleNavigation = (event: Event) => {
+      const page = (event as CustomEvent<PageId>).detail;
+      if (navigation.some((item) => item.id === page)) setActivePage(page);
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('nexus:navigate', handleNavigation);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('nexus:navigate', handleNavigation);
+    };
+  }, []);
 
-.topbar {
-  flex-wrap: wrap;
-}
+  const groupedItems = useMemo(() => navigation.reduce<Record<string, typeof navigation>>((groups, item) => {
+    groups[item.group] = [...(groups[item.group] ?? []), item];
+    return groups;
+  }, {}), []);
 
-.topbar-meta,
-.status-panel {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
+  const restock = (name: string) => {
+    setStock((current) => current + 20);
+    setWorkflows((current) => [{ id: Date.now(), title: `Supplier order placed · ${name}`, state: 'running' as const, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...current].slice(0, 4));
+    setToast(`Supplier order placed for ${name}.`);
+  };
 
-.user-chip {
-  background: rgba(143, 162, 184, 0.1);
-  border: 1px solid rgba(143, 162, 184, 0.2);
-  border-radius: 999px;
-  padding: 0.5rem 0.75rem;
-}
+  const filteredNavigation = navigation.filter((item) => item.id.toLowerCase().includes(search.toLowerCase()));
 
-.user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #7ae1d1, #5aa7ff);
-  color: #09111d;
-  font-weight: 700;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.metric-card,
-.panel {
-  background: rgba(13, 24, 36, 0.85);
-  border: 1px solid rgba(143, 162, 184, 0.14);
-  border-radius: 20px;
-  padding: 1rem 1.1rem;
-}
-
-.metric-card strong {
-  display: block;
-  font-size: clamp(1.4rem, 2vw, 2.2rem);
-  margin-top: 0.9rem;
-}
-
-.delta {
-  font-size: 0.75rem;
-  padding: 0.3rem 0.5rem;
-  border-radius: 999px;
-}
-
-.delta.positive {
-  background: rgba(122, 225, 209, 0.12);
-  color: #9ef0df;
-}
-
-.delta.neutral {
-  background: rgba(147, 165, 182, 0.12);
-  color: #cfe2f6;
-}
-
-.delta.warning {
-  background: rgba(255, 212, 110, 0.12);
-  color: #ffd370;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid transparent;
-}
-
-.status-badge.positive {
-  background: rgba(122, 225, 209, 0.11);
-  border-color: rgba(122, 225, 209, 0.18);
-  color: #9ef0df;
-}
-
-.status-badge.neutral {
-  background: rgba(130, 156, 184, 0.1);
-  border-color: rgba(130, 156, 184, 0.15);
-  color: #dfeaf6;
-}
-
-.status-badge.warning {
-  background: rgba(255, 212, 110, 0.12);
-  border-color: rgba(255, 212, 110, 0.2);
-  color: #ffd370;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 1rem;
-}
-
-.bottom-grid {
-  align-items: start;
-}
-
-.panel-large {
-  min-height: 260px;
-}
-
-.chart-bars {
-  height: 190px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.7rem;
-  padding-top: 1.5rem;
-}
-
-.bar-column {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.bar-column span {
-  display: block;
-  width: 100%;
-  border-radius: 12px 12px 0 0;
-  background: linear-gradient(180deg, #7ae1d1, #5aa7ff);
-  min-height: 18%;
-}
-
-.security-list,
-.activity-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.security-list li,
-.activity-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.8rem 0.75rem;
-  border-radius: 12px;
-  background: rgba(143, 162, 184, 0.05);
-}
-
-.security-list span,
-.activity-list p {
-  color: #c0d3e8;
-}
-
-.chat-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-height: 350px;
-}
-
-.chat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  overflow: auto;
-  max-height: 350px;
-  padding-right: 0.25rem;
-}
-
-.chat-bubble {
-  max-width: 90%;
-  padding: 0.8rem 0.9rem;
-  border-radius: 14px;
-  line-height: 1.5;
-}
-
-.chat-bubble.user {
-  align-self: flex-end;
-  background: linear-gradient(135deg, #7ae1d1, #5aa7ff);
-  color: #041319;
-}
-
-.chat-bubble.assistant {
-  align-self: flex-start;
-  background: rgba(143, 162, 184, 0.08);
-  border: 1px solid rgba(143, 162, 184, 0.14);
-  color: #e7eff8;
-}
-
-.chat-input-row {
-  margin-top: auto;
-  flex-wrap: wrap;
-}
-
-.chat-input-row input {
-  flex: 1;
-  min-width: 200px;
-  border: 1px solid rgba(143, 162, 184, 0.15);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  color: #edf5ff;
-  padding: 0.8rem 0.9rem;
-}
-
-.error-card {
-  text-align: center;
-}
-
-@media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+  if (accessStage === 'perimeter') {
+    return <PerimeterGate onUnlock={() => setAccessStage('login')} />;
+  }
+  if (accessStage === 'login') {
+    return <EnterpriseLogin onLogin={(email) => { setUserEmail(email); setAccessStage('workspace'); }} />;
   }
 
-  .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid rgba(143, 162, 184, 0.14);
-  }
-
-  .metrics-grid,
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .main-content {
-    padding: 1rem;
-  }
-
-  .chat-input-row,
-  .topbar,
-  .panel-header,
-  .metric-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .primary-button,
-  .secondary-button,
-  .chat-input-row input {
-    width: 100%;
-  }
+  return <div className="app-shell" data-theme={theme} dir="rtl" lang="ar">
+    <aside className="sidebar"><div><button className="brand-lockup" aria-label="Nexus business ERP SaaS OS home" onClick={() => setActivePage('Overview')}><span className="brand-symbol"><span /><span /><span /><span /></span><span className="brand-name">nexus<span>business ERP SaaS OS</span></span></button><button className="workspace-switcher" onClick={() => setWorkspace((current) => current === 'Acme Studio' ? 'Northstar Group' : 'Acme Studio')}><span className="workspace-mark">{workspace === 'Acme Studio' ? 'A' : 'N'}</span><span><strong>{workspace}</strong><small>مساحة العمل المؤسسية</small></span><Icon name="chevron" size={15} /></button>{Object.entries(groupedItems).map(([group, items]) => <nav className="nav-group" key={group} aria-label={group === 'WORKSPACE' ? 'مساحة العمل' : group === 'BUSINESS' ? 'إدارة الأعمال' : 'التحليلات'}>{items.map((item) => <button key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}><Icon name={item.icon} size={17} /><span>{arabicNavigation[item.id]}</span>{item.id === 'Analytics' && <i className="nav-count">٣</i>}{item.id === 'Inventory' && <i className="nav-count">٢</i>}</button>)}</nav>)}</div><div className="sidebar-bottom"><div className="upgrade-card"><span className="upgrade-icon"><Icon name="spark" size={16} /></span><strong>اجعل أعمالك أكثر كفاءة</strong><p>اكتشف إمكانات الذكاء الاصطناعي لفريقك.</p><button onClick={() => setActivePage('AI assistant')}>استكشف مساعد Nexus <Icon name="arrow" size={13} /></button></div><button className="profile-button" onClick={() => setAccessStage('login')}><span className="profile-avatar">AM</span><span><strong>{userEmail}</strong><small>مدير مساحة العمل · تسجيل الخروج</small></span><Icon name="more" size={16} /></button></div></aside>
+    <main className="main-area"><header className="topbar"><div className="breadcrumb"><span>{workspace}</span><span>/</span><strong>{arabicNavigation[activePage]}</strong></div><div className="topbar-actions"><button className="search-trigger" onClick={() => setCommandOpen(true)}><Icon name="search" size={16} /><span>ابحث في مساحة العمل</span><kbd>⌘ K</kbd></button><button className="icon-button theme-toggle" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} /></button><button className="icon-button notification-button" aria-label="الإشعارات"><Icon name="bell" size={17} /><i /></button><span className="topbar-divider" /><div className="topbar-profile"><span className="profile-avatar">AM</span><Icon name="chevron" size={14} /></div></div></header><div className="page-content">{activePage === 'Overview' && <><OverviewPage onRun={runAction} reportGenerated={reportGenerated} /><ArabicOperations /></>}{activePage === 'AI assistant' && <AssistantPage onRun={runAction} execution={execution} />}{activePage === 'Finance' && <FinancePage onRun={runAction} />}{activePage === 'Sales & CRM' && <CrmPage deals={deals} setDeals={setDeals} />}{activePage === 'People' && <PeoplePage />}{activePage === 'Inventory' && <InventoryPage onRestock={restock} stock={stock} />}{activePage === 'Analytics' && <AnalyticsPage />}</div><footer className="app-footer"><span><i className="health-dot mint" />All systems operational</span><span>© 2026 Nexus business ERP SaaS OS <span className="footer-separator">·</span> Built for better business</span></footer></main>
+    <button className={`system-tray-button ${workflows.some((workflow) => workflow.state === 'running') ? 'has-running' : ''}`} onClick={() => setTrayOpen((open) => !open)} aria-label={`Background workflows${workflows.some((workflow) => workflow.state === 'running') ? ', running' : ''}`}><span className="tray-pulse" /><Icon name="command" size={17} />{workflows.some((workflow) => workflow.state === 'running') && <i />}</button>
+    {trayOpen && <div className="workflow-tray"><div className="tray-heading"><div><strong>Background activity</strong><span>{workflows.filter((workflow) => workflow.state === 'running').length} running</span></div><button className="icon-button" onClick={() => setTrayOpen(false)} aria-label="Close activity panel"><Icon name="close" size={16} /></button></div>{workflows.length ? workflows.map((workflow) => <div className="workflow-item" key={workflow.id}><span className={`workflow-status ${workflow.state}`}><Icon name={workflow.state === 'complete' ? 'check' : 'clock'} size={14} /></span><span><strong>{workflow.title}</strong><small>{workflow.state === 'complete' ? 'Completed' : 'Working in the background'} · {workflow.time}</small></span></div>) : <p className="empty-state">Your background activity will appear here.</p>}</div>}
+    {commandOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}><section className="command-modal" role="dialog" aria-modal="true" aria-label="Search Nexus"><div className="command-input"><Icon name="search" size={19} /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search pages and tools…" /><kbd>ESC</kbd></div><span className="command-caption">PAGES & WORKSPACES</span>{filteredNavigation.map((item) => <button className="command-result" key={item.id} onClick={() => { setActivePage(item.id); setCommandOpen(false); setSearch(''); }}><span className="command-icon"><Icon name={item.icon} size={16} /></span>{item.id}<kbd>↵</kbd></button>)}{filteredNavigation.length === 0 && <p className="empty-state">No matching pages. Try another search.</p>}<div className="command-hint"><Icon name="command" size={14} />Nexus global search <span>Search your business, naturally.</span></div></section></div>}
+    {toast && <div className="toast" role="status"><span><Icon name="check" size={16} /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss notification"><Icon name="close" size={14} /></button></div>}
+  </div>;
 }

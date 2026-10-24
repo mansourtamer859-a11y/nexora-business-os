@@ -1,8 +1,0 @@
-VITE_APP_NAME="NEXUS SaaS ERP OS"
-VITE_APP_ENVIRONMENT="development"
-VITE_API_BASE_URL="https://api.example.com"
-VITE_SUPABASE_URL="https://your-project.supabase.co"
-VITE_SUPABASE_ANON_KEY="your-anon-key"
-VITE_GOOGLE_CLIENT_ID="your-google-client-id"
-VITE_GEMINI_API_KEY="your-gemini-api-key"
-VITE_ENABLE_DEMO_AUTH="true"
