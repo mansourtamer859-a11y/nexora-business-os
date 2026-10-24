@@ -1,6 +1,6 @@
 # Nexus business ERP SaaS OS
 
-A responsive enterprise workspace for finance, sales, people operations, inventory, and business analytics. The current release is a client-side interactive demo built with React, TypeScript, and Vite; all operational data and assistant actions are simulated locally.
+A responsive React/TypeScript ERP workspace with Cloudflare Pages Functions. Authenticated CRM opportunities, finance invoice rows, and inventory counts are stored in per-identity D1 records. People operations, analytics, forecasts, social integrations, and assistant actions still include demo behavior; see the system boundaries below.
 
 ## Run locally
 
@@ -20,11 +20,26 @@ npm audit
 npm run preview
 ```
 
-The development and preview servers bind to port `4173` and fail with an explicit error if it is already occupied. Configure `VITE_APP_NAME` and `VITE_APP_ENVIRONMENT` in `.env.local` to set the page title and public environment metadata. Never put secrets in `VITE_*` values; Vite embeds them in browser assets.
+The Vite development and preview servers bind to port `4173` and fail with an explicit error if it is already occupied. They serve the SPA only; Pages Functions and D1 require a Cloudflare Pages-compatible runtime. Configure `VITE_APP_NAME` and `VITE_APP_ENVIRONMENT` in `.env.local` to set the page title and public environment metadata. Never put secrets in `VITE_*` values; Vite embeds them in browser assets.
 
-## Static deployment
+## Cloudflare Pages deployment
 
-The app can be deployed as static assets to Cloudflare Pages with the build command `npm run build` and output directory `dist`. The checked-in `public/_headers` file is copied to the output and supplies baseline browser security headers plus long-lived caching for hashed assets. Enforce HTTPS at the hosting edge. Cloudflare plan quotas and overages vary; a static build does not guarantee zero-cost hosting.
+Build with `npm run build`; the Pages output directory is `dist`. The app uses Cloudflare Pages Functions under `functions/` for identity verification and workspace data, so it is not a static-only deployment. `public/_redirects` provides SPA routing and `public/_headers` sets browser security headers. HTTPS must be enabled at the Cloudflare edge.
+
+Before deployment:
+
+1. Configure a Cloudflare Access self-hosted application for the Pages hostname, protect the entire hostname (including `/api/*`), configure the chosen OIDC identity provider, and limit access with an explicit identity policy.
+2. Replace `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `wrangler.toml` with the Access team hostname and application audience. These identifiers are public configuration, not secrets.
+3. Create the D1 database (`npx wrangler d1 create nexus-business-erp`), replace the placeholder `database_id` in `wrangler.toml` with the returned ID, and apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexus-business-erp --remote`.
+4. Deploy with `npx wrangler pages deploy dist --project-name nexus-business-erp-saas-os` or configure the Pages Git integration to use `npm run build` and `dist`.
+
+The checked-in Access values and D1 ID are deliberate placeholders; the project is not deployable for authenticated data until they are replaced and the Access application, OIDC provider, Pages project, and D1 binding exist. The serverless code and schema are ready for those environment-specific settings. Do not put secrets in Vite `VITE_*` variables.
+
+The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise the API. Until Access and D1 are configured, the app fails closed and does not expose a demo sign-in fallback.
+
+## Arabic and English
+
+The workspace supports Arabic (RTL) and English (LTR). Use the language control in the top bar; the preference is stored in browser local storage when available. Arabic is the initial language. This prototype keeps sample records local, and some company/product names and sample dates are intentionally retained as proper names or data values rather than translated UI labels.
 
 The runtime bundle is limited to React and React DOM; unused Supabase and router packages were removed. Vite is a development/build dependency and is not required to serve the built static assets.
 
@@ -43,24 +58,16 @@ The runtime bundle is limited to React and React DOM; unused Supabase and router
 
 Use **⌘ K** (or **Ctrl K**) to search and switch modules. The theme control in the top bar toggles dark and light appearance. The system tray at the lower-right shows background demo workflows.
 
-## Demo access and security boundary
+## Identity, authorization, and workspace data
 
-The access-gate demonstration token is `#117007`. The following login accepts any valid email and a password of at least eight characters; the Google button also advances through a local simulation. These screens demonstrate UI flows only: the gate token is present in the public client bundle, sign-in does not establish an authenticated identity, and no cryptographic protection or OAuth exchange takes place. Because the application is a client-rendered SPA, the gate is not a pre-framework or network-layer HTTPS gate.
+- The client-side `#117007` passkey, simulated email/password login, fake Google OAuth button, and remembered-demo-session bypass have been removed.
+- Cloudflare Access is the identity provider boundary. The app calls `/api/auth/session`; the Pages Function verifies the `Cf-Access-Jwt-Assertion` signature using the Access JWKS and checks issuer, audience, subject, email, and time claims. No app code stores or accepts a client-provided session token.
+- `/api/business-data` independently verifies Access identity on each read and write. It accepts same-origin JSON writes only, enforces a payload limit and strict schema, uses prepared D1 statements, scopes records to the verified Access subject, disables caching, and applies a revision check to prevent silent overwrites from concurrent sessions.
+- CRM deals, finance invoice rows, and inventory counts load from and save to D1. They are no longer stored in browser localStorage; old demo storage keys are removed when the app starts. A new identity starts with empty records. D1 data remains per Access subject in this initial schema; tenant memberships, roles, shared workspaces, and audit history are not yet modeled.
+- All protected Pages routes must also be covered by a Cloudflare Access application and restrictive policy. API JWT validation is defense in depth, not a substitute for configuring Access on the hostname. Keep the Access team and audience values, and the D1 database ID, correctly configured per deployment.
 
-The login offers an opt-in “Remember this demo device” option. When selected, the browser stores a plain JSON demo continuity record and a randomly generated local installation marker for up to 14 days. A matching record skips the demo gate and login screens on that browser profile; signing out removes both local records. This is not encryption, a secure device identity, or a server-validated session: browser storage can be inspected, edited, copied, or cleared, and it must not authorize access to real data.
+The microphone requests browser permission, captures audio for local level metering, and uses the browser's Web Speech recognition implementation to match only approved phrases. It is not a streaming AI provider integration; speech recognition behavior and possible vendor processing depend on the browser. Assistant actions, HR records, analytics charts, invoice file scanning, forecasts, and social channel activity remain demo behavior. Do not interpret simulated totals, channel status, or assistant output as authoritative business data. The invoice archiver only inspects file metadata and does not upload or parse document contents.
 
-Demo email input is bounded and validated, the passphrase is checked exactly (not transformed), and passwords are not persisted. These client-side checks improve input handling only: the shared source and built assets remain inspectable and modifiable by users. Browser storage changes in another tab or detected on focus/expiry return a remembered demo session to the presentation gate, but same-origin code or a user with developer tools can bypass that state.
-
-The demo passphrase screen applies a temporary in-memory lockout after five failed attempts in a 60-second window. The 30-second cooldown is deliberately described as a UI deterrent, not cryptographic fallback or a reliable brute-force defense; reloads and modified client code can reset or bypass it.
-
-Assistant actions are a fixed allowlist of local demo operations. Unknown requests are declined rather than mapped to a plausible-looking report. The “مسار اتخاذ القرار الذكي” panel describes the deterministic UI path; it is not a model reasoning trace, independent data verification, or a guarantee of factual accuracy. There is no GenAI service or microphone capture in this build.
-
-The invoice archiver accepts PDF/PNG/JPEG selections up to 10 MB and simulates scanning based on filename/type/size metadata only. It never reads file contents or uploads them. Forecast charts extrapolate fixed sample assumptions from displayed mock telemetry; they are not predictive analytics or financial advice. No parsed metadata is posted to a ledger.
-
-Social channels are similarly UI-only simulations. Their switches, message counters, and CRM lead creation do not connect to provider APIs or process real messages. Configure and validate provider webhooks, credentials, consent, and server-side authorization before implementing real channel integrations.
-
-The app includes module-level React error boundaries to keep a rendering failure in a workspace view from taking down the app shell. React error boundaries do not catch every event-handler, network, or asynchronous failure; this static prototype has no backend workflow or service-level isolation.
-
-Do not use this prototype to protect production systems or sensitive data. The `#117007` gate cannot be cryptographically isolated in a browser bundle. A production deployment needs server-side identity verification (for example, a configured OIDC provider), HTTPS enforced at the hosting edge, server-validated sessions, and authorization checks on every protected API and data operation. Replace the local demo data and simulated actions with audited backend workflows before connecting business data.
+`npm run typecheck` checks both the React app and the Pages Functions. Production deployment still requires configured Cloudflare Access/OIDC, a real D1 database binding, an applied migration, TLS, tenant authorization requirements, and environment-level validation. No source-only implementation can verify a live Cloudflare account or provider configuration.
 
 For the engineering milestone history, validation evidence, and security boundary assessment, see [PROJECT_AUDIT.md](./PROJECT_AUDIT.md).

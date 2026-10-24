@@ -8,6 +8,20 @@ const approvedRequests = new Map([
   ['Review synced leads', 'تمت مراجعة العملاء المحتملين التجريبيين في مسار CRM.'],
 ]);
 
+const spokenCommands = new Map([
+  ['generate quarter sales report', 'Generate quarter sales report'],
+  ['audit payroll operations', 'Audit payroll operations'],
+  ['show low stock inventory', 'Show low-stock inventory'],
+  ['show low-stock inventory', 'Show low-stock inventory'],
+  ['summarize this weeks cash flow', 'Summarize this week’s cash flow'],
+  ['review synced leads', 'Review synced leads'],
+  ['إنشاء تقرير المبيعات', 'Generate quarter sales report'],
+  ['مراجعة عمليات الرواتب', 'Audit payroll operations'],
+  ['مراجعة المخزون المنخفض', 'Show low-stock inventory'],
+  ['تلخيص التدفق النقدي لهذا الأسبوع', 'Summarize this week’s cash flow'],
+  ['مراجعة العملاء المحتملين', 'Review synced leads'],
+]);
+
 const explanationSteps = [
   'تحليل الطلب ومطابقته مع الإجراءات المسموح بها',
   'التحقق من نطاق البيانات التجريبية المحلية',
@@ -31,6 +45,16 @@ export function resolveTrustedAssistantRequest(request: string): Omit<AssistantD
     response,
     steps: explanationSteps,
   };
+}
+
+export function resolveSpokenCommand(transcript: string): string | null {
+  const normalized = transcript
+    .normalize('NFC')
+    .trim()
+    .replace(/[.!?؟،,]+$/u, '')
+    .replace(/\s+/gu, ' ')
+    .toLocaleLowerCase('en');
+  return spokenCommands.get(normalized) ?? null;
 }
 
 export function useAntiHallucination() {

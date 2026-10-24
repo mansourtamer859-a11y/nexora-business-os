@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
+import { useLocale } from '../i18n/useLocale';
 
 type ArchivedDocument = {
   id: string;
@@ -26,6 +27,7 @@ function isSupportedDocument(file: File) {
 }
 
 export function InvoiceArchiver() {
+  const { t, locale } = useLocale();
   const [documents, setDocuments] = useState<ArchivedDocument[]>([]);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -47,11 +49,11 @@ export function InvoiceArchiver() {
     const accepted: ArchivedDocument[] = [];
     for (const file of Array.from(fileList)) {
       if (!isSupportedDocument(file)) {
-        setError('اختر ملفات PDF أو PNG أو JPEG فقط.');
+        setError(t('اختر ملفات PDF أو PNG أو JPEG فقط.'));
         continue;
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        setError('الحد الأقصى لحجم المستند التجريبي هو 10 ميغابايت.');
+        setError(t('الحد الأقصى لحجم المستند التجريبي هو 10 ميغابايت.'));
         continue;
       }
       accepted.push({
@@ -77,7 +79,7 @@ export function InvoiceArchiver() {
   };
 
   return <Panel className="invoice-archiver">
-    <PanelTitle title="أرشفة المستندات والفواتير" subtitle="تحليل محلي تجريبي لبيانات الملف الوصفية فقط" />
+    <PanelTitle title={t('أرشفة المستندات والفواتير')} subtitle={t('تحليل محلي تجريبي لبيانات الملف الوصفية فقط')} />
     <button
       className={`invoice-dropzone ${dragging ? 'dragging' : ''}`}
       type="button"
@@ -88,26 +90,28 @@ export function InvoiceArchiver() {
       aria-describedby="archive-disclaimer"
     >
       <span className="invoice-drop-icon" aria-hidden="true">↑</span>
-      <strong>اسحب المستند هنا أو اختر ملفاً</strong>
-      <small>PDF أو PNG أو JPEG · حتى 10 ميغابايت · لا يتم رفع الملف</small>
+      <strong>{t('اسحب المستند هنا أو اختر ملفاً')}</strong>
+      <small>{t('PDF أو PNG أو JPEG · حتى 10 ميغابايت · لا يتم رفع الملف')}</small>
     </button>
     <input ref={inputRef} className="visually-hidden" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" multiple onChange={handleChange} />
     {error && <p className="archive-error" role="alert">{error}</p>}
-    <p className="archive-disclaimer" id="archive-disclaimer">محاكاة واجهة فقط: لا تُقرأ محتويات الملفات أو تُرسل إلى خدمة خارجية. لا يوجد OCR أو توزيع محاسبي حقيقي.</p>
+    <p className="archive-disclaimer" id="archive-disclaimer">{t('محاكاة واجهة فقط: لا تُقرأ محتويات الملفات أو تُرسل إلى خدمة خارجية. لا يوجد OCR أو توزيع محاسبي حقيقي.')}</p>
     {documents.length > 0 && <div className="archive-list" aria-live="polite">
       {documents.map((document) => <article className="archive-item" key={document.id}>
         <span className="archive-file-type">{document.kind.slice(0, 4)}</span>
-        <span className="archive-file-copy"><strong>{document.name}</strong><small>{(document.size / 1024).toFixed(0)} KB · {document.status === 'scanning' ? 'فحص تجريبي للبيانات الوصفية…' : 'أُضيف إلى مصفوفة العرض · بانتظار مراجعة بشرية'}</small></span>
-        <span className={`archive-status ${document.status}`} aria-label={document.status === 'scanning' ? 'Scanning simulated' : 'Archived in demo'}>{document.status === 'scanning' ? 'جارٍ' : 'تجريبي'}</span>
+        <span className="archive-file-copy"><strong>{document.name}</strong><small>{(document.size / 1024).toLocaleString(locale)} KB · {document.status === 'scanning' ? t('فحص تجريبي للبيانات الوصفية…') : t('أُضيف إلى مصفوفة العرض · بانتظار مراجعة بشرية')}</small></span>
+        <span className={`archive-status ${document.status}`} aria-label={document.status === 'scanning' ? t('Scanning simulated') : t('Archived in demo')}>{document.status === 'scanning' ? t('جارٍ') : t('تجريبي')}</span>
       </article>)}
     </div>}
   </Panel>;
 }
 
 function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`panel ${className}`}>{children}</section>;
+  const { locale, direction } = useLocale();
+  return <section className={`panel ${className}`} lang={locale} dir={direction}>{children}</section>;
 }
 
 function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return <div className="panel-title"><div><h2>{title}</h2><p>{subtitle}</p></div></div>;
+  const { t } = useLocale();
+  return <div className="panel-title"><div><h2>{t(title)}</h2><p>{t(subtitle)}</p></div></div>;
 }

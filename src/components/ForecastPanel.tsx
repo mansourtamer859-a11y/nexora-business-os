@@ -19,6 +19,7 @@ function ProjectionChart({ title, unit, history, projection, threshold }: {
   projection: number[];
   threshold?: number;
 }) {
+  const { t, locale, direction } = useLocale();
   const values = [...history, ...projection];
   const minimum = Math.min(...values, ...(threshold === undefined ? [] : [threshold]));
   const maximum = Math.max(...values, ...(threshold === undefined ? [] : [threshold]));
@@ -28,7 +29,7 @@ function ProjectionChart({ title, unit, history, projection, threshold }: {
     ? undefined
     : 88 - ((threshold - minimum) / Math.max(1, maximum - minimum)) * 76;
 
-  return <article className="forecast-chart">
+  return <article className="forecast-chart" lang={locale} dir={direction}>
     <div className="forecast-chart-heading"><strong>{title}</strong><small>{unit}</small></div>
     <svg viewBox="0 0 200 100" role="img" aria-label={`${title}: historical sample and projected demo trend`}>
       <path className="forecast-grid-line" d="M8 12H192M8 50H192M8 88H192" />
@@ -36,12 +37,13 @@ function ProjectionChart({ title, unit, history, projection, threshold }: {
       <polyline className="forecast-history-line" points={historyPoints} />
       <polyline className="forecast-projection-line" points={projectedPoints} />
     </svg>
-    <div className="forecast-periods"><span>حالي</span><span>توقع تجريبي</span></div>
-    {threshold !== undefined && <small className="forecast-threshold-label">حد إعادة الطلب: {threshold} وحدة</small>}
+    <div className="forecast-periods"><span>{t('حالي')}</span><span>{t('توقع تجريبي')}</span></div>
+    {threshold !== undefined && <small className="forecast-threshold-label">{t('حد إعادة الطلب:')} {threshold} {t('وحدة')}</small>}
   </article>;
 }
 
 export function ForecastPanel({ recurringRevenue, inventoryOnHand }: ForecastPanelProps) {
+  const { t, locale, direction } = useLocale();
   const revenueHistory = [
     Math.round(recurringRevenue * 0.88),
     Math.round(recurringRevenue * 0.93),
@@ -67,11 +69,12 @@ export function ForecastPanel({ recurringRevenue, inventoryOnHand }: ForecastPan
     Math.max(0, inventoryOnHand - 4),
   ];
 
-  return <section className="forecast-panel" lang="ar" dir="rtl" aria-label="توقعات تشغيلية تجريبية">
-    <header className="forecast-heading"><div><h2>توقعات تشغيلية تجريبية</h2><p>إسقاطات مبسطة من مؤشرات العرض الحالية، وليست تنبؤاً تشغيلياً موثوقاً.</p></div><span>بيانات توضيحية</span></header>
+  return <section className="forecast-panel" lang={locale} dir={direction} aria-label={t('توقعات تشغيلية تجريبية')}>
+    <header className="forecast-heading"><div><h2>{t('توقعات تشغيلية تجريبية')}</h2><p>{t('إسقاطات مبسطة من مؤشرات العرض الحالية، وليست تنبؤاً تشغيلياً موثوقاً.')}</p></div><span>{t('بيانات توضيحية')}</span></header>
     <div className="forecast-grid">
-      <ProjectionChart title="الإيراد الشهري المتكرر" unit="دولار · إسقاط ٤ فترات" history={revenueHistory} projection={revenueProjection} />
-      <ProjectionChart title="مخزون العنصر منخفض الرصيد" unit="وحدات · اتجاه افتراضي" history={inventoryHistory} projection={inventoryProjection} threshold={15} />
+      <ProjectionChart title={t('الإيراد الشهري المتكرر')} unit={t('دولار · إسقاط ٤ فترات')} history={revenueHistory} projection={revenueProjection} />
+      <ProjectionChart title={t('مخزون العنصر منخفض الرصيد')} unit={t('وحدات · اتجاه افتراضي')} history={inventoryHistory} projection={inventoryProjection} threshold={15} />
     </div>
   </section>;
 }
+import { useLocale } from '../i18n/useLocale';

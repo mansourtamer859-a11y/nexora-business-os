@@ -6,6 +6,30 @@
 **Application type:** React 18 + TypeScript + Vite client-rendered SPA  
 **Audit scope:** Architecture and UI milestones represented in the local repository history and validation evidence recorded during implementation.
 
+## Current implementation update
+
+The sections below preserve the earlier client-demo audit as historical context. This update supersedes their descriptions of active authentication and record persistence.
+
+### Identity and API authorization
+
+- Removed the browser passkey, client-only login, fake Google sign-in, remembered demo session, and related attempt guard from the active bundle.
+- Added Cloudflare Pages Functions at `/api/auth/session` and `/api/business-data`. Each handler independently validates the `Cf-Access-Jwt-Assertion` RSA signature and enforces the configured issuer, Access application audience, subject, email, and time claims.
+- The browser does not create or persist identity tokens. Configure Cloudflare Access with an OIDC provider and an explicit policy protecting the Pages hostname and API paths; server-side token validation is defense in depth.
+
+### D1 workspace persistence
+
+- Added a D1 `workspace_state` schema and authenticated read/write endpoint for CRM deals, finance invoice rows, and inventory counts.
+- Stored records are keyed by the verified Access subject, validated against a bounded schema, written with prepared statements, and protected by a revision check that returns a conflict rather than silently overwriting concurrent updates.
+- Removed localStorage persistence for these business records and clear legacy demo session/data keys. This initial data model is per identity; shared tenant membership, role-based authorization, and audit history are still required before multi-user/tenant production use.
+
+### Voice and honest remaining boundaries
+
+- The browser audio-capture and speech-recognition work described later remains in place. It uses browser Web Audio/Web Speech APIs and an exact local command allowlist; it is not an external AI model stream.
+- HR data, analytics values, invoice content scanning, predictive charts, social-channel connections, and assistant operation results remain partially or fully simulated as noted below.
+- `npm run typecheck` now checks both the React code and Pages Functions. Deployment still requires replacing the Access team/audience and D1 ID placeholders, creating the Cloudflare resources, applying the migration, and validating the live Access policy.
+
+**Current references:** [functions/api/auth/session.ts](./functions/api/auth/session.ts), [functions/api/business-data.ts](./functions/api/business-data.ts), [functions/_lib/access.ts](./functions/_lib/access.ts), [src/hooks/useWorkspaceData.ts](./src/hooks/useWorkspaceData.ts), [src/lib/workspaceData.ts](./src/lib/workspaceData.ts), [migrations/0001_workspace_state.sql](./migrations/0001_workspace_state.sql), [wrangler.toml](./wrangler.toml).
+
 ## Executive summary
 
 The project has been reshaped from a mismatched starter workspace into a branded, interactive ERP dashboard demonstration. It includes a multi-stage client-side demo access flow, Arabic RTL navigation and operations UI, simulated finance/CRM/people/inventory/analytics surfaces, and a lower-density, guided Overview experience.
