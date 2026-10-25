@@ -30,10 +30,10 @@ Before deployment:
 
 1. Configure a Cloudflare Access self-hosted application for the Pages hostname, protect the entire hostname (including `/api/*`), configure the chosen OIDC identity provider, and limit access with an explicit identity policy.
 2. For manual Wrangler deployment, replace `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `wrangler.toml` with the Access team hostname and application audience. The GitHub Actions workflow instead reads these values from repository variables.
-3. Create the D1 database (`npx wrangler d1 create nexus-business-erp`) and set its ID in `wrangler.toml` for manual deployment, or in the `D1_DATABASE_ID` repository variable for GitHub Actions. Apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexus-business-erp --remote`.
+3. Create the D1 database (`npx wrangler d1 create nexus-business-erp`) and copy its returned UUID into a `[[d1_databases]]` binding in `wrangler.toml` for manual deployment. Do not check in a zero UUID or placeholder. The GitHub Actions workflow adds this binding to a temporary deployment config from the `D1_DATABASE_ID` repository variable. Apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexus-business-erp --remote`.
 4. Deploy with `npx wrangler pages deploy dist --project-name nexus-business-erp-saas-os` or configure the Pages Git integration to use `npm run build` and `dist`.
 
-The checked-in Access values and D1 ID are deliberate placeholders; the project is not deployable for authenticated data until they are replaced and the Access application, OIDC provider, Pages project, and D1 binding exist. The serverless code and schema are ready for those environment-specific settings. Do not put secrets in Vite `VITE_*` variables.
+The checked-in Access values are deliberate placeholders, and the base Wrangler template intentionally omits D1 so Cloudflare cannot interpret a fake UUID as a database. The Pages Functions workspace API requires the D1 binding: direct/manual deployment must add it using the real UUID, while the GitHub Actions workflow requires a configured `D1_DATABASE_ID` variable and creates the binding at deploy time. Do not put secrets in Vite `VITE_*` variables.
 
 ### GitHub Actions deployment
 
