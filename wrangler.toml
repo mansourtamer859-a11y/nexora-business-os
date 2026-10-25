@@ -3,13 +3,5 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
 [vars]
-# Replace these public identifiers with values from the Cloudflare Access application.
-CF_ACCESS_TEAM_DOMAIN = "replace-with-your-team.cloudflareaccess.com"
+CF_ACCESS_TEAM_DOMAIN = "://cloudflareaccess.com"
 CF_ACCESS_AUD = "replace-with-your-access-application-audience"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "nexus-business-erp"
-# Replace this UUID with the D1 database ID created for this environment.
-database_id = "00000000-0000-0000-0000-000000000000"
-migrations_dir = "migrations"
