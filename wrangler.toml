@@ -1,7 +1,3 @@
 name = "nexus-business-erp-saas-os"
 pages_build_output_dir = "./dist"
-compatibility_date = "2025-03-01"
-
-[vars]
-CF_ACCESS_TEAM_DOMAIN = "://cloudflareaccess.com"
-CF_ACCESS_AUD = "replace-with-your-access-application-audience"
+compatibility_date = "2025-03-01
