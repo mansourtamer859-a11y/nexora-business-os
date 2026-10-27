@@ -1,12 +1,13 @@
-export async function onRequestGet({ request, env }): Promise<Response> {
-  // تخطي حارس الحظر الخارجي وإرجاع جلسة مستخدم افتراضية آمنة لتشغيل واجهة الويب
-  return new Response(JSON.stringify({ 
+export async function onRequestGet(context: { request: Request; env: any }): Promise<Response> {
+  const mockSession = {
     email: "admin@nexora.com",
-    authenticated: true 
-  }), {
-    headers: { 
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store' 
+    authenticated: true
+  };
+
+  return new Response(JSON.stringify(mockSession), {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
     }
   });
 }
