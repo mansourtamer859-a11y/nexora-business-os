@@ -2,11 +2,6 @@ name = "nexus-business-erp-saas-os"
 pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
-[vars]
-# Configure these GitHub Actions repository variables for production deployments.
-CF_ACCESS_TEAM_DOMAIN = "replace-with-your-team.cloudflareaccess.com"
-CF_ACCESS_AUD = "replace-with-your-access-application-audience"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "nexora-db"
