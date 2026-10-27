@@ -52,31 +52,35 @@ jobs:
         env:
           CF_ACCESS_TEAM_DOMAIN: ${{ vars.CF_ACCESS_TEAM_DOMAIN }}
           CF_ACCESS_AUD: ${{ vars.CF_ACCESS_AUD }}
-          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
         run: |
           python3 - <<'PY'
           import json
           import os
           import re
-          from pathlib import Path
           import tomllib
+          from pathlib import Path
 
           values = {
               "CF_ACCESS_TEAM_DOMAIN": os.environ.get("CF_ACCESS_TEAM_DOMAIN", ""),
               "CF_ACCESS_AUD": os.environ.get("CF_ACCESS_AUD", ""),
-              "D1_DATABASE_ID": os.environ.get("D1_DATABASE_ID", ""),
           }
           if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?", values["CF_ACCESS_TEAM_DOMAIN"]):
-              raise SystemExit("Set the repository variable CF_ACCESS_TEAM_DOMAIN to the Access team hostname.")
-          if not values["CF_ACCESS_AUD"] or len(values["CF_ACCESS_AUD"]) > 512 or re.search(r"\s", values["CF_ACCESS_AUD"]):
-              raise SystemExit("Set the repository variable CF_ACCESS_AUD to the Access application audience.")
-          if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", values["D1_DATABASE_ID"]):
-              raise SystemExit("Set the repository variable D1_DATABASE_ID to the production D1 database UUID.")
-          if values["D1_DATABASE_ID"] == "00000000-0000-0000-0000-000000000000":
-              raise SystemExit("D1_DATABASE_ID cannot be the zero UUID placeholder.")
+              raise SystemExit("Set the repository variable CF_ACCESS_TEAM_DOMAIN to the Cloudflare Access team hostname.")
+          if values["CF_ACCESS_TEAM_DOMAIN"].startswith("replace-"):
+              raise SystemExit("CF_ACCESS_TEAM_DOMAIN must not be a placeholder.")
+          if not values["CF_ACCESS_AUD"] or values["CF_ACCESS_AUD"].startswith("replace-") or len(values["CF_ACCESS_AUD"]) > 512 or re.search(r"\s", values["CF_ACCESS_AUD"]):
+              raise SystemExit("Set the repository variable CF_ACCESS_AUD to the Cloudflare Access application audience.")
 
           path = Path("wrangler.toml")
           config = path.read_text(encoding="utf-8")
+          parsed = tomllib.loads(config)
+          databases = parsed.get("d1_databases", [])
+          if len(databases) != 1 or databases[0].get("binding") != "DB":
+              raise SystemExit("wrangler.toml must define exactly one production D1 binding named DB.")
+          database_id = databases[0].get("database_id", "")
+          if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", database_id) or database_id == "00000000-0000-0000-0000-000000000000":
+              raise SystemExit("wrangler.toml must contain the real production D1 UUID, not a placeholder.")
+
           replacements = {
               'CF_ACCESS_TEAM_DOMAIN = "replace-with-your-team.cloudflareaccess.com"':
                   f"CF_ACCESS_TEAM_DOMAIN = {json.dumps(values['CF_ACCESS_TEAM_DOMAIN'])}",
@@ -85,21 +89,13 @@ jobs:
           }
           for original, replacement in replacements.items():
               if original not in config:
-                  raise SystemExit(f"Expected deployment placeholder not found in {path}: {original.split(' = ')[0]}")
+                  raise SystemExit(f"Expected Access placeholder missing from {path}: {original.split(' = ')[0]}")
               config = config.replace(original, replacement, 1)
-          if "[[d1_databases]]" in config:
-              raise SystemExit("Keep production D1 bindings out of the checked-in Wrangler template.")
-          config += (
-              "\n[[d1_databases]]\n"
-              'binding = "DB"\n'
-              'database_name = "nexus-business-erp"\n'
-              f"database_id = {json.dumps(values['D1_DATABASE_ID'])}\n"
-              'migrations_dir = "migrations"\n'
-          )
+
+          generated = tomllib.loads(config)
+          if generated["d1_databases"][0]["database_id"] != database_id:
+              raise SystemExit("Generated config changed the production D1 binding unexpectedly.")
           Path(".wrangler-deploy.toml").write_text(config, encoding="utf-8")
-          parsed = tomllib.loads(config)
-          if parsed["d1_databases"][0]["database_id"] != values["D1_DATABASE_ID"]:
-              raise SystemExit("Generated Wrangler config did not retain the configured D1 database ID.")
           PY
 
       - name: Apply D1 migrations
@@ -109,7 +105,7 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Set CLOUDFLARE_API_TOKEN in repository secrets."; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Set CLOUDFLARE_ACCOUNT_ID in repository secrets."; exit 1; }
-          npx --yes wrangler@4 d1 migrations apply nexus-business-erp --remote --config .wrangler-deploy.toml
+          npx --yes wrangler@4 d1 migrations apply nexora-db --remote --config .wrangler-deploy.toml
 
       - name: Deploy Pages assets and Functions
         env:

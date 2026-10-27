@@ -3,6 +3,12 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
 [vars]
-# Replace these public identifiers with values from the Cloudflare Access application.
+# Configure these GitHub Actions repository variables for production deployments.
 CF_ACCESS_TEAM_DOMAIN = "replace-with-your-team.cloudflareaccess.com"
 CF_ACCESS_AUD = "replace-with-your-access-application-audience"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nexora-db"
+database_id = "6320c168-5d19-4983-9192-c626215ec177"
+migrations_dir = "migrations"

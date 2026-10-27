@@ -24,25 +24,25 @@ The Vite development and preview servers bind to port `4173` and fail with an ex
 
 ## Cloudflare Pages deployment
 
-Build with `npm run build`; the Pages output directory is `dist`. The app uses Cloudflare Pages Functions under `functions/` for identity verification and workspace data, so it is not a static-only deployment. `public/_redirects` provides SPA routing and `public/_headers` sets browser security headers. HTTPS must be enabled at the Cloudflare edge.
+Build with `npm run build`; the Pages output directory is `dist`. The app uses Cloudflare Pages Functions under `functions/` for identity verification and workspace data, so it is not a static-only deployment. `public/_headers` sets browser security headers. The Pages SPA fallback handles client-side routes; HTTPS must be enabled at the Cloudflare edge.
 
 Before deployment:
 
 1. Configure a Cloudflare Access self-hosted application for the Pages hostname, protect the entire hostname (including `/api/*`), configure the chosen OIDC identity provider, and limit access with an explicit identity policy.
-2. For manual Wrangler deployment, replace `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `wrangler.toml` with the Access team hostname and application audience. The GitHub Actions workflow instead reads these values from repository variables.
-3. Create the D1 database (`npx wrangler d1 create nexus-business-erp`) and copy its returned UUID into a `[[d1_databases]]` binding in `wrangler.toml` for manual deployment. Do not check in a zero UUID or placeholder. The GitHub Actions workflow adds this binding to a temporary deployment config from the `D1_DATABASE_ID` repository variable. Apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexus-business-erp --remote`.
+2. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `wrangler.toml` for manual deployment. GitHub Actions substitutes the repository variables of those names into a temporary config; do not commit real account-specific Access values unless that is intentional.
+3. The checked-in `[[d1_databases]]` binding uses database name `nexora-db` and the configured D1 UUID. Confirm that this UUID belongs to the target Cloudflare account before deployment. Apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexora-db --remote`.
 4. Deploy with `npx wrangler pages deploy dist --project-name nexus-business-erp-saas-os` or configure the Pages Git integration to use `npm run build` and `dist`.
 
-The checked-in Access values are deliberate placeholders, and the base Wrangler template intentionally omits D1 so Cloudflare cannot interpret a fake UUID as a database. The Pages Functions workspace API requires the D1 binding: direct/manual deployment must add it using the real UUID, while the GitHub Actions workflow requires a configured `D1_DATABASE_ID` variable and creates the binding at deploy time. Do not put secrets in Vite `VITE_*` variables.
+Do not replace the D1 UUID with an all-zero or placeholder value. Do not put secrets in Vite `VITE_*` variables.
 
 ### GitHub Actions deployment
 
 The workflow at `.github/workflows/pages-deploy.yml` validates, builds, applies D1 migrations, then deploys the Pages assets and Functions on pushes to `main` or a manual dispatch. Before enabling it, add these repository settings:
 
 - **Actions secrets:** `CLOUDFLARE_API_TOKEN` (scoped to Pages edit and D1 edit) and `CLOUDFLARE_ACCOUNT_ID`.
-- **Actions variables:** `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, and `D1_DATABASE_ID`.
+- **Actions variables:** `CF_ACCESS_TEAM_DOMAIN` (the hostname only, such as `example.cloudflareaccess.com`) and `CF_ACCESS_AUD` (the Access application audience).
 
-The workflow creates a temporary Wrangler config from those values and does not commit or print it. A successful Git push is still required to trigger the workflow; Actions cannot bypass missing GitHub credentials. Cloudflare plan limits and D1 usage determine costs; neither zero cost nor customer provisioning is guaranteed.
+The workflow validates the checked-in D1 binding, generates a temporary Wrangler config from the Access variables, applies pending D1 migrations, and deploys Pages. The temporary config is not committed or printed. A successful Git push or manual workflow dispatch is still required; Actions cannot bypass missing GitHub or Cloudflare credentials. Cloudflare plan limits and D1 usage determine costs; neither zero cost nor customer provisioning is guaranteed.
 
 The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise the API. Until Access and D1 are configured, the app fails closed and does not expose a demo sign-in fallback.
 

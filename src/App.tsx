@@ -15,6 +15,61 @@ type IconName = 'grid' | 'spark' | 'wallet' | 'users' | 'briefcase' | 'boxes' | 
 type Workflow = { id: number; title: string; state: 'running' | 'complete'; time: string };
 type AccessStage = 'checking' | 'unauthorized' | 'error' | 'workspace';
 
+function waitForIdentityRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, delayMs);
+    const abort = () => {
+      window.clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      reject(new DOMException('Identity verification was cancelled.', 'AbortError'));
+    };
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
+async function fetchIdentityResponse(signal: AbortSignal): Promise<Response> {
+  let lastError: Error = new Error('Could not reach the identity verification service.');
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const requestController = new AbortController();
+    const abortRequest = () => requestController.abort();
+    const timeout = window.setTimeout(abortRequest, 8000);
+    signal.addEventListener('abort', abortRequest, { once: true });
+    try {
+      const response = await fetch('/api/auth/session', {
+        cache: 'no-store',
+        signal: requestController.signal,
+      });
+      if (![502, 503, 504].includes(response.status) || attempt === 2) return response;
+      lastError = new Error(`Identity verification is temporarily unavailable (HTTP ${response.status}).`);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      lastError = new Error('Could not reach the identity verification service. Please retry.');
+    } finally {
+      window.clearTimeout(timeout);
+      signal.removeEventListener('abort', abortRequest);
+    }
+    if (attempt < 2) await waitForIdentityRetry(250 * (attempt + 1), signal);
+  }
+  throw lastError;
+}
+
+function identityResponseError(status: number): Error {
+  if (status === 404) {
+    return new Error('The sign-in endpoint is not deployed. Deploy the Pages Functions and retry.');
+  }
+  if (status >= 500) {
+    return new Error(`Identity verification is temporarily unavailable (HTTP ${status}). Check Cloudflare Access configuration.`);
+  }
+  return new Error(`Identity verification failed (HTTP ${status}).`);
+}
+
 const navigation: { id: PageId; icon: IconName; group: string }[] = [
   { id: 'Overview', icon: 'grid', group: 'WORKSPACE' },
   { id: 'AI assistant', icon: 'spark', group: 'WORKSPACE' },
@@ -149,7 +204,7 @@ function IdentityScreen({
         : status === 'error'
           ? 'The identity or workspace service could not be verified. Check the Cloudflare Access and D1 configuration, then retry.'
           : 'The application is checking your organization identity and loading server-stored workspace data.')}</p>
-      {message && <p className="session-notice" role="alert">{message}</p>}
+      {message && <p className="session-notice" role="alert">{t(message)}</p>}
       {(status === 'unauthorized' || status === 'error') && <button className="gate-submit identity-retry" onClick={onRetry}>{t('Retry identity verification')}<Icon name="arrow" size={16} /></button>}
       <div className="security-footnote"><span><i />{t('SERVER-VERIFIED IDENTITY')}</span><span>ACCESS TOKEN NEVER STORED IN APP</span></div>
     </section>
@@ -391,40 +446,35 @@ export function App() {
   const handleUnauthorized = useCallback(() => setAccessStage('unauthorized'), []);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     const verifyIdentity = async () => {
       try {
-        const response = await fetch('/api/auth/session', { cache: 'no-store' });
-        if (!active) return;
+        const response = await fetchIdentityResponse(controller.signal);
+        if (controller.signal.aborted) return;
         if (response.status === 401) {
           setAccessStage('unauthorized');
           return;
         }
-        if (!response.ok) {
-          setAuthError(await response.text());
-          setAccessStage('error');
-          return;
-        }
+        if (!response.ok) throw identityResponseError(response.status);
 
         const identity: unknown = await response.json();
         if (typeof identity !== 'object' || identity === null || !('email' in identity)
           || typeof identity.email !== 'string' || identity.email.length > 254) {
-          setAccessStage('error');
-          return;
+          throw new Error('The identity endpoint returned an invalid response.');
         }
         setUserEmail(identity.email);
         setAccessStage('workspace');
-      } catch {
-        if (active) {
-          setAuthError('Could not reach the identity verification service.');
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setAuthError(error instanceof Error ? error.message : 'Identity verification failed. Please retry.');
           setAccessStage('error');
         }
       }
     };
 
     void verifyIdentity();
-    return () => { active = false; };
+    return () => controller.abort();
   }, [authAttempt]);
 
   const workspaceData = useWorkspaceData(accessStage === 'workspace', handleUnauthorized);

@@ -94,6 +94,11 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
     }
 
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15_000);
 
     const load = async () => {
       try {
@@ -113,15 +118,20 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
         if (body.data) setData(body.data);
         setStatus('ready');
       } catch (loadError) {
-        if (controller.signal.aborted) return;
-        const message = loadError instanceof Error ? loadError.message : 'Workspace data could not be loaded.';
+        if (controller.signal.aborted && !timedOut) return;
+        const message = timedOut
+          ? 'Workspace data request timed out. Check the Cloudflare Pages Function and D1 binding, then retry.'
+          : loadError instanceof Error ? loadError.message : 'Workspace data could not be loaded.';
         setError(message);
         setStatus('error');
       }
     };
 
     void load();
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [enabled, loadAttempt, onUnauthorized]);
 
   useEffect(() => {
