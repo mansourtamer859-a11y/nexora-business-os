@@ -1,3 +1,8 @@
-name = "nexus-business-erp-saas-os"
+name = "nexus-business-er-saas-os"
 pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nexora-db"
+database_id = "6320c168-5d19-4983-9192-c626215ec177"
