@@ -3,8 +3,8 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
 [vars]
-CF_ACCESS_TEAM_DOMAIN = "localhost"
-CF_ACCESS_AUD = "disabled"
+CF_ACCESS_TEAM_DOMAIN = ""
+CF_ACCESS_AUD = ""
 
 [[d1_databases]]
 binding = "DB"
