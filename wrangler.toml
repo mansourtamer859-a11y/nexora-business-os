@@ -3,8 +3,8 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
 [vars]
-CF_ACCESS_TEAM_DOMAIN = ""
-CF_ACCESS_AUD = ""
+CF_ACCESS_TEAM_DOMAIN = "https://cloudflareaccess.com"
+CF_ACCESS_AUD = "d50e145dab179e9f13251efeb1b60ab26ef8325786dd195e03c5c127acd328fe"
 
 [[d1_databases]]
 binding = "DB"
