@@ -2,10 +2,6 @@ name = "nexus-business-erp-saas-os"
 pages_build_output_dir = "./dist"
 compatibility_date = "2025-03-01"
 
-[vars]
-CF_ACCESS_TEAM_DOMAIN = "https://mansourtamer.cloudflareaccess.com"
-CF_ACCESS_AUD = "d50e145dab179e9f13251efeb1b60ab26ef8325786dd195e03c5c127acd328fe"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "nexora-db"
