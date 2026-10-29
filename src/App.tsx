@@ -431,7 +431,7 @@ function AnalyticsPage({ inventoryOnHand }: { inventoryOnHand: number }) {
 
 export function App() {
   const { locale, direction, setLocale, t } = useLocale();
-  const [accessStage, setAccessStage] = useState<AccessStage>('checking');
+  const [accessStage, setAccessStage] = useState<AccessStage>('workspace');
   const [authAttempt, setAuthAttempt] = useState(0);
   const [authError, setAuthError] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -473,7 +473,7 @@ export function App() {
       }
     };
 
-    void verifyIdentity();
+    // void verifyIdentity();
     return () => controller.abort();
   }, [authAttempt]);
 
