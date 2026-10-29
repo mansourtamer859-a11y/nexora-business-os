@@ -1,7 +1,4 @@
-name = "nexora-business-os"
-pages_build_output_dir = "dist"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "nexora-db"
-database_id = "your-d1-database-id-here"
+database_id = "6320c168-5d19-4983-9192-c626215ec177"
