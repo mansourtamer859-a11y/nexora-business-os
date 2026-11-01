@@ -32,6 +32,30 @@ type PasswordRecord = {
   password_iterations: number | null;
 };
 
+type OAuthStateRecord = {
+  nonce: string;
+  code_verifier: string;
+  expires_at: number;
+};
+
+type GoogleIdClaims = {
+  aud?: string;
+  email?: string;
+  email_verified?: boolean;
+  exp?: number;
+  iat?: number;
+  iss?: string;
+  nonce?: string;
+  sub?: string;
+};
+
+type GoogleIdHeader = {
+  alg?: string;
+  kid?: string;
+};
+
+class GoogleVerificationUnavailable extends Error {}
+
 const sessionCookieName = '__Host-nexora_session';
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 const passwordIterations = 210_000;
@@ -169,6 +193,123 @@ export async function createAccount(
     }
     console.error('Could not create the account record.', error);
     return jsonError(503, 'Account registration is temporarily unavailable.');
+  }
+}
+
+export async function createGoogleAccount(
+  database: D1Database,
+  email: string,
+  googleSubject: string,
+): Promise<AuthIdentity | Response> {
+  try {
+    const linked = await database.prepare(
+      'SELECT id, email, google_subject FROM auth_users WHERE google_subject = ?',
+    ).bind(googleSubject).first<{ id: string; email: string; google_subject: string }>();
+    if (linked) return { id: linked.id, email: linked.email };
+
+    const matchingEmail = await database.prepare(
+      'SELECT id, email, google_subject FROM auth_users WHERE email = ?',
+    ).bind(email).first<{ id: string; email: string; google_subject: string | null }>();
+    if (matchingEmail) {
+      if (matchingEmail.google_subject) return jsonError(409, 'This email is already linked to another Google account.');
+      await database.prepare('UPDATE auth_users SET google_subject = ? WHERE id = ? AND google_subject IS NULL')
+        .bind(googleSubject, matchingEmail.id).run();
+      return { id: matchingEmail.id, email: matchingEmail.email };
+    }
+
+    const id = crypto.randomUUID();
+    await database.prepare(
+      'INSERT INTO auth_users (id, email, google_subject, created_at) VALUES (?, ?, ?, ?)',
+    ).bind(id, email, googleSubject, Date.now()).run();
+    return { id, email };
+  } catch (error) {
+    console.error('Could not link the Google identity to an account.', error);
+    return jsonError(503, 'Google sign-in is temporarily unavailable.');
+  }
+}
+
+export async function createOAuthState(
+  database: D1Database,
+  state: string,
+  nonce: string,
+  codeVerifier: string,
+): Promise<void> {
+  const stateHash = bytesToBase64Url(await sha256(state));
+  const now = Date.now();
+  await database.prepare('DELETE FROM auth_oauth_states WHERE expires_at <= ?').bind(now).run();
+  await database.prepare(
+    'INSERT INTO auth_oauth_states (state_hash, nonce, code_verifier, expires_at) VALUES (?, ?, ?, ?)',
+  ).bind(stateHash, nonce, codeVerifier, now + 10 * 60 * 1000).run();
+}
+
+export async function consumeOAuthState(database: D1Database, state: string): Promise<OAuthStateRecord | null> {
+  const stateHash = bytesToBase64Url(await sha256(state));
+  const stored = await database.prepare(
+    'SELECT nonce, code_verifier, expires_at FROM auth_oauth_states WHERE state_hash = ? AND expires_at > ?',
+  ).bind(stateHash, Date.now()).first<OAuthStateRecord>();
+  await database.prepare('DELETE FROM auth_oauth_states WHERE state_hash = ?').bind(stateHash).run();
+  return stored;
+}
+
+function decodeBase64UrlJson<T>(value: string): T {
+  const decoded = new TextDecoder().decode(base64UrlToBytes(value));
+  return JSON.parse(decoded) as T;
+}
+
+export async function verifyGoogleIdToken(
+  token: string,
+  clientId: string,
+  expectedNonce: string,
+): Promise<{ subject: string; email: string } | null> {
+  const parts = token.split('.');
+  if (parts.length !== 3 || parts.some((part) => !part)) return null;
+  let header: GoogleIdHeader;
+  let claims: GoogleIdClaims;
+  try {
+    header = decodeBase64UrlJson<GoogleIdHeader>(parts[0]);
+    claims = decodeBase64UrlJson<GoogleIdClaims>(parts[1]);
+  } catch {
+    return null;
+  }
+  if (header.alg !== 'RS256' || !header.kid
+    || (claims.iss !== 'https://accounts.google.com' && claims.iss !== 'accounts.google.com')
+    || claims.aud !== clientId || claims.nonce !== expectedNonce
+    || typeof claims.sub !== 'string' || claims.sub.length > 255
+    || !normalizeEmail(claims.email) || claims.email_verified !== true
+    || typeof claims.exp !== 'number' || claims.exp <= Math.floor(Date.now() / 1000)
+    || typeof claims.iat !== 'number' || claims.iat > Math.floor(Date.now() / 1000) + 60) {
+    return null;
+  }
+  try {
+    const keysResponse = await fetch('https://www.googleapis.com/oauth2/v3/certs', {
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!keysResponse.ok) throw new GoogleVerificationUnavailable('Google signing keys could not be loaded.');
+    const keySet: unknown = await keysResponse.json();
+    if (typeof keySet !== 'object' || keySet === null || !('keys' in keySet) || !Array.isArray(keySet.keys)) {
+      throw new GoogleVerificationUnavailable('Google signing key response is invalid.');
+    }
+    const jwk = keySet.keys.find((key): key is JsonWebKey & { kid: string } =>
+      typeof key === 'object' && key !== null && 'kid' in key && key.kid === header.kid);
+    if (!jwk) throw new GoogleVerificationUnavailable('Google signing key was not found.');
+    const cryptoKey = await crypto.subtle.importKey('jwk', jwk, {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    }, false, ['verify']);
+    const valid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      toArrayBuffer(base64UrlToBytes(parts[2])),
+      toArrayBuffer(new TextEncoder().encode(`${parts[0]}.${parts[1]}`)),
+    );
+    if (!valid) return null;
+    return { subject: claims.sub, email: normalizeEmail(claims.email) as string };
+  } catch (error) {
+    if (error instanceof GoogleVerificationUnavailable) throw error;
+    console.error('Could not validate the Google identity token.', error);
+    throw new GoogleVerificationUnavailable('Google identity validation is temporarily unavailable.');
   }
 }
 

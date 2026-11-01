@@ -84,15 +84,19 @@ async function parseIdentityResponse(response: Response): Promise<unknown> {
   }
 }
 
-const navigation: { id: PageId; icon: IconName; group: string }[] = [
-  { id: 'Overview', icon: 'grid', group: 'WORKSPACE' },
-  { id: 'AI assistant', icon: 'spark', group: 'WORKSPACE' },
-  { id: 'Finance', icon: 'wallet', group: 'BUSINESS' },
-  { id: 'Sales & CRM', icon: 'users', group: 'BUSINESS' },
-  { id: 'People', icon: 'briefcase', group: 'BUSINESS' },
-  { id: 'Inventory', icon: 'boxes', group: 'BUSINESS' },
-  { id: 'Analytics', icon: 'chart', group: 'INSIGHTS' },
-  { id: 'Integrations', icon: 'share', group: 'INSIGHTS' },
+const navigation: { id: PageId; label: string; icon: IconName; group: string }[] = [
+  { id: 'Overview', label: 'Home', icon: 'grid', group: 'WORKSPACE' },
+  { id: 'AI assistant', label: 'AI assistant', icon: 'spark', group: 'WORKSPACE' },
+  { id: 'Inventory', label: 'Store Management', icon: 'boxes', group: 'BUSINESS' },
+  { id: 'Sales & CRM', label: 'Sales', icon: 'trend', group: 'BUSINESS' },
+  { id: 'Inventory', label: 'Inventory', icon: 'boxes', group: 'BUSINESS' },
+  { id: 'Sales & CRM', label: 'Customers', icon: 'users', group: 'BUSINESS' },
+  { id: 'Finance', label: 'Accounting', icon: 'wallet', group: 'BUSINESS' },
+  { id: 'Analytics', label: 'Reports', icon: 'chart', group: 'INSIGHTS' },
+  { id: 'Inventory', label: 'Suppliers', icon: 'share', group: 'BUSINESS' },
+  { id: 'People', label: 'Employees', icon: 'briefcase', group: 'BUSINESS' },
+  { id: 'People', label: 'Branches', icon: 'grid', group: 'BUSINESS' },
+  { id: 'Integrations', label: 'Global Settings', icon: 'command', group: 'INSIGHTS' },
 ];
 
 const iconContent: Record<IconName, ReactNode> = {
@@ -170,7 +174,7 @@ const assistantPrompts: Record<PageId, { label: string; action: string }[]> = {
 
 function PageHeading({ page, description, action }: { page: string; description: string; action?: ReactNode }) {
   const { t } = useLocale();
-  return <div className="page-heading"><div><p className="eyebrow">NEXUS BUSINESS ERP SAAS OS{page === 'Overview' ? ` · ${t('MONDAY, OCTOBER 23, 2026')}` : ''}</p><h1>{page === 'Overview' ? t('Good morning, Alex') : t(page)}</h1><p className="heading-description">{t(description)}</p></div>{action}</div>;
+  return <div className="page-heading"><div><p className="eyebrow">NEXORA BUSINESS OS{page === 'Overview' ? ` · ${t('MONDAY, OCTOBER 23, 2026')}` : ''}</p><h1>{page === 'Overview' ? t('Good morning, Alex') : t(page)}</h1><p className="heading-description">{t(description)}</p></div>{action}</div>;
 }
 
 function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; value: string; delta: string; icon: IconName; tone?: string }) {
@@ -216,18 +220,18 @@ function IdentityScreen({
 }) {
   const { t, direction, locale } = useLocale();
   const title = status === 'checking'
-    ? 'Verifying organization identity…'
+    ? 'Verifying your session…'
     : status === 'loading-data'
       ? 'Loading your secure workspace…'
       : status === 'unauthorized'
-        ? 'Organization sign-in is required.'
+        ? 'Sign in is required.'
         : 'Secure workspace unavailable.';
 
   return <main className="security-screen identity-screen" lang={locale} dir={direction}>
     <div className="security-grain" />
     <div className="security-orb" />
     <section className="security-card identity-card">
-      <div className="security-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXUS<span>BUSINESS ERP SAAS OS</span></span></div>
+      <div className="security-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXORA<span>BUSINESS OS</span></span></div>
       <div className="security-emblem"><span /><Icon name="command" size={22} /><i /></div>
       <p className="security-overline">NEXORA SECURE SIGN-IN</p>
       <h1>{t(allowAuth ? (mode === 'sign-in' ? 'Sign in to your workspace' : 'Create your account') : title)}</h1>
@@ -244,6 +248,7 @@ function IdentityScreen({
         <button className="gate-submit" type="submit" disabled={busy}>{t(busy ? 'Connecting to workspace…' : mode === 'sign-in' ? 'Sign in securely' : 'Create account')}<Icon name="arrow" size={16} /></button>
         <button className="auth-mode-toggle" type="button" disabled={busy} onClick={() => onModeChange(mode === 'sign-in' ? 'register' : 'sign-in')}>{t(mode === 'sign-in' ? 'New here? Create an account' : 'Already registered? Sign in')}</button>
       </form>}
+      {allowAuth && <div className="oauth-option"><span>{t('OR CONTINUE WITH')}</span><button type="button" onClick={() => window.location.assign('/api/auth/google/start')}><b>G</b>{t('Continue with Google')}</button></div>}
       {(status === 'error' || status === 'unauthorized') && <button className="gate-submit identity-retry" type="button" onClick={onRetry}>{t('Retry identity verification')}<Icon name="arrow" size={16} /></button>}
       <div className="security-footnote"><span><i />{t('SERVER-VERIFIED IDENTITY')}</span><span>{t('SESSION COOKIE IS HTTP-ONLY')}</span></div>
     </section>
@@ -298,18 +303,18 @@ function VoiceAssistant({ onRun, page }: { onRun: (prompt: string) => void; page
     void speech.start(locale === 'ar' ? 'ar-SA' : 'en-US');
   };
 
-  return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXUS INTELLIGENCE · {t(page)}</span><div className="assistant-welcome" lang={locale} dir={direction}>{t('Welcome to Nexus OS. How can I help manage your company today?')}</div><p className="assistant-subtitle" lang={locale} dir={direction}>{t('Your intelligent assistant is ready — choose a task to begin.')}</p><div className="voice-transcript" aria-live="polite">{speech.transcript && <><span lang={locale}>{t('Recognized speech')}</span><p>“{speech.transcript}”</p></>}</div>{speech.error && <p className="login-error" role="alert">{t(speech.error)}</p>}<div className="prompt-list" lang={locale} dir={direction}>{quickActions.map((prompt) => <button key={prompt.label} disabled={listening} onClick={() => executeRequest(prompt.action)}>{t(prompt.label)}<Icon name="arrow" size={14} /></button>)}</div><small className="speech-privacy-note">{t('Speech recognition uses your browser. Provider processing depends on browser implementation.')}</small></div><div className={`voice-visual ${listening ? 'listening' : ''}`} style={{ '--audio-level': speech.audioLevel } as CSSProperties}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <i key={index} style={{ '--bar': `${18 + ((index * 19) % 48)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={toggleListening} aria-label={t(listening ? 'Stop listening' : 'Start listening')}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{t(listening ? 'LISTENING…' : 'TAP TO SPEAK')}</span></div><section className="assistant-reasoning" lang={locale} dir={direction} aria-live="polite"><h3>{t('مسار اتخاذ القرار الذكي')}</h3>{decision ? <><p>{decision.status === 'checking' ? t('Checking the request against approved actions…') : t(decision.response)}</p><ol>{decision.steps.map((step) => <li key={step}>{t(step)}</li>)}</ol><small>{decision.status === 'checking' ? t('Local demo processing') : t('Local demo action · no external model')}</small></> : <p>{t('Approved demo actions only, based on local sample data.')}</p>}</section></Panel>;
+  return <Panel className="assistant-panel"><div className="assistant-copy"><span className="assistant-label"><span className="live-dot" />NEXORA INTELLIGENCE · {t(page)}</span><div className="assistant-welcome" lang={locale} dir={direction}>{t('Welcome to Nexora OS. How can I help manage your company today?')}</div><p className="assistant-subtitle" lang={locale} dir={direction}>{t('Your intelligent assistant is ready — choose a task to begin.')}</p><div className="voice-transcript" aria-live="polite">{speech.transcript && <><span lang={locale}>{t('Recognized speech')}</span><p>“{speech.transcript}”</p></>}</div>{speech.error && <p className="login-error" role="alert">{t(speech.error)}</p>}<div className="prompt-list" lang={locale} dir={direction}>{quickActions.map((prompt) => <button key={prompt.label} disabled={listening} onClick={() => executeRequest(prompt.action)}>{t(prompt.label)}<Icon name="arrow" size={14} /></button>)}</div><small className="speech-privacy-note">{t('Speech recognition uses your browser. Provider processing depends on browser implementation.')}</small></div><div className={`voice-visual ${listening ? 'listening' : ''}`} style={{ '--audio-level': speech.audioLevel } as CSSProperties}><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="wave-bars" aria-hidden="true">{Array.from({ length: 13 }, (_, index) => <i key={index} style={{ '--bar': `${18 + ((index * 19) % 48)}%` } as CSSProperties} />)}</div><button className="mic-button" onClick={toggleListening} aria-label={t(listening ? 'Stop listening' : 'Start listening')}><Icon name={listening ? 'close' : 'mic'} size={23} /></button><span className="mic-caption">{t(listening ? 'LISTENING…' : 'TAP TO SPEAK')}</span></div><section className="assistant-reasoning" lang={locale} dir={direction} aria-live="polite"><h3>{t('مسار اتخاذ القرار الذكي')}</h3>{decision ? <><p>{decision.status === 'checking' ? t('Checking the request against approved actions…') : t(decision.response)}</p><ol>{decision.steps.map((step) => <li key={step}>{t(step)}</li>)}</ol><small>{decision.status === 'checking' ? t('Local demo processing') : t('Local demo action · no external model')}</small></> : <p>{t('Approved demo actions only, based on local sample data.')}</p>}</section></Panel>;
 }
 
 function AssistantDock({ page, onRun }: { page: PageId; onRun: (prompt: string) => void }) {
   const { t, locale, direction } = useLocale();
   const [open, setOpen] = useState(false);
   const actions = assistantPrompts[page];
-  return <div className="assistant-dock" dir={direction} lang={locale}><button className={`assistant-dock-trigger ${open ? 'open' : ''}`} onClick={() => setOpen((current) => !current)} aria-expanded={open}><Icon name={open ? 'close' : 'spark'} size={17} /><span>{t('مساعد Nexus')}</span><i /></button>{open && <section className="assistant-dock-panel" aria-label={`${t('مساعد Nexus')} · ${t(page)}`}><span className="assistant-label"><span className="live-dot" />{t(page)}</span><strong>{t('كيف أساعدك الآن؟')}</strong><p>{t('اقتراحات تناسب مساحة العمل الحالية.')}</p>{actions.map((action) => <button key={action.label} onClick={() => { onRun(action.action); setOpen(false); }}>{t(action.label)}<Icon name="arrow" size={13} /></button>)}</section>}</div>;
+  return <div className="assistant-dock" dir={direction} lang={locale}><button className={`assistant-dock-trigger ${open ? 'open' : ''}`} onClick={() => setOpen((current) => !current)} aria-expanded={open}><Icon name={open ? 'close' : 'spark'} size={17} /><span>{t('مساعد Nexora')}</span><i /></button>{open && <section className="assistant-dock-panel" aria-label={`${t('مساعد Nexora')} · ${t(page)}`}><span className="assistant-label"><span className="live-dot" />{t(page)}</span><strong>{t('كيف أساعدك الآن؟')}</strong><p>{t('اقتراحات تناسب مساحة العمل الحالية.')}</p>{actions.map((action) => <button key={action.label} onClick={() => { onRun(action.action); setOpen(false); }}>{t(action.label)}<Icon name="arrow" size={13} /></button>)}</section>}</div>;
 }
 
 const welcomeSteps = [
-  { title: 'Get started with Nexus assistant', detail: 'Choose a suggested action or speak a request.', target: 'Your AI assistant' },
+  { title: 'Get started with Nexora assistant', detail: 'Choose a suggested action or speak a request.', target: 'Your AI assistant' },
   { title: 'Follow your metrics calmly', detail: 'Your company’s key metrics are clear and update automatically.', target: 'Performance summary' },
   { title: 'Expand details when you need them', detail: 'Orders, tasks, and analytics are organized in expandable cards.', target: 'Operations cards' },
 ];
@@ -322,12 +327,17 @@ function hasDismissedOnboarding() {
   }
 }
 
-function WelcomeTour() {
+function WelcomeTour({ deals, invoices, stock }: { deals: number; invoices: number; stock: number }) {
   const { t, locale, direction } = useLocale();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(() => !hasDismissedOnboarding());
   if (!visible) return null;
   const current = welcomeSteps[step];
+  const numberFormat = new Intl.NumberFormat(locale);
+  const snapshot = t('Workspace snapshot: {deals} CRM opportunities · {invoices} invoices · {units} inventory units')
+    .replace('{deals}', numberFormat.format(deals))
+    .replace('{invoices}', numberFormat.format(invoices))
+    .replace('{units}', numberFormat.format(stock));
   const dismiss = () => {
     try {
       window.sessionStorage.setItem('nexus-onboarding-dismissed', 'true');
@@ -336,12 +346,149 @@ function WelcomeTour() {
     }
     setVisible(false);
   };
-  return <section className="welcome-guide" lang={locale} dir={direction} aria-label={t('Guide to get started')}><span className="guide-spark"><Icon name="spark" size={16} /></span><div className="guide-copy"><span className="guide-kicker">{t('Calm start')} · {step + 1} {t('of')} {welcomeSteps.length}</span><strong>{t(current.title)}</strong><p>{t(current.detail)}</p><div className="guide-progress" aria-label={`${t('Step')} ${step + 1} ${t('of')} ${welcomeSteps.length}`}>{welcomeSteps.map((item, index) => <i className={index <= step ? 'complete' : ''} key={item.target} />)}</div></div><div className="guide-actions"><button className="guide-dismiss" onClick={dismiss}>{t('Skip')}</button><button className="guide-next" onClick={() => step === welcomeSteps.length - 1 ? dismiss() : setStep((currentStep) => currentStep + 1)}>{t(step === welcomeSteps.length - 1 ? 'Get started' : 'Next')}<Icon name="arrow" size={13} /></button></div></section>;
+  return <section className="welcome-guide" lang={locale} dir={direction} aria-label={t('Guide to get started')}><span className="guide-spark"><Icon name="spark" size={16} /></span><div className="guide-copy"><span className="guide-kicker">{t('Calm start')} · {step + 1} {t('of')} {welcomeSteps.length}</span><strong>{t(current.title)}</strong><p>{t(current.detail)}</p><small className="guide-snapshot">{snapshot}</small><div className="guide-progress" aria-label={`${t('Step')} ${step + 1} ${t('of')} ${welcomeSteps.length}`}>{welcomeSteps.map((item, index) => <i className={index <= step ? 'complete' : ''} key={item.target} />)}</div></div><div className="guide-actions"><button className="guide-dismiss" onClick={dismiss}>{t('Skip')}</button><button className="guide-next" onClick={() => step === welcomeSteps.length - 1 ? dismiss() : setStep((currentStep) => currentStep + 1)}>{t(step === welcomeSteps.length - 1 ? 'Get started' : 'Next')}<Icon name="arrow" size={13} /></button></div></section>;
 }
 
-function OverviewPage({ onRun }: { onRun: (prompt: string) => void }) {
+const salesWeek = [
+  { day: 'Mon', amount: 12_400 },
+  { day: 'Tue', amount: 18_200 },
+  { day: 'Wed', amount: 15_800 },
+  { day: 'Thu', amount: 24_600 },
+  { day: 'Fri', amount: 21_300 },
+  { day: 'Sat', amount: 29_100 },
+  { day: 'Sun', amount: 26_800 },
+];
+
+function SalesTimeline() {
+  const { t } = useLocale();
+  const [activePoint, setActivePoint] = useState<number | null>(null);
+  const points = salesWeek.map((item, index) => ({
+    ...item,
+    x: 22 + index * 96,
+    y: 174 - (item.amount / 32_000) * 142,
+  }));
+  const line = points.map((point, index) => {
+    if (index === 0) return `M ${point.x} ${point.y}`;
+    const previous = points[index - 1];
+    const midX = (previous.x + point.x) / 2;
+    return `C ${midX} ${previous.y}, ${midX} ${point.y}, ${point.x} ${point.y}`;
+  }).join(' ');
+  const area = `${line} L ${points[points.length - 1].x} 190 L ${points[0].x} 190 Z`;
+
+  return <div className="sales-timeline">
+    <div className="timeline-summary"><strong>$148.2k</strong><span><Icon name="trend" size={13} /> 12.8%</span><small>{t('compared with last week')}</small></div>
+    <div className="timeline-plot">
+      {activePoint !== null && <div className="timeline-tooltip" style={{ left: `${(points[activePoint].x / 620) * 100}%` }}>
+        <strong>{t(points[activePoint].day)}</strong><span>${points[activePoint].amount.toLocaleString()}</span>
+      </div>}
+      <svg viewBox="0 0 640 205" role="img" aria-label={t('Sales over the last seven days')}>
+        <defs><linearGradient id="sales-area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--blue)" stopOpacity=".27" /><stop offset="100%" stopColor="var(--blue)" stopOpacity="0" /></linearGradient></defs>
+        {[35, 80, 125, 170].map((y) => <line className="timeline-gridline" key={y} x1="18" x2="626" y1={y} y2={y} />)}
+        <path d={area} fill="url(#sales-area-fill)" />
+        <path className="timeline-line" d={line} />
+        {points.map((point, index) => <circle
+          className={`timeline-point ${activePoint === index ? 'selected' : ''}`}
+          key={point.day}
+          cx={point.x}
+          cy={point.y}
+          r={activePoint === index ? 5 : 3.5}
+          tabIndex={0}
+          aria-label={`${t(point.day)}: $${point.amount.toLocaleString()}`}
+          onMouseEnter={() => setActivePoint(index)}
+          onMouseLeave={() => setActivePoint(null)}
+          onFocus={() => setActivePoint(index)}
+          onBlur={() => setActivePoint(null)}
+        />)}
+      </svg>
+      <div className="timeline-days">{salesWeek.map(({ day }) => <span key={day}>{t(day)}</span>)}</div>
+    </div>
+  </div>;
+}
+
+function CategoryDistribution() {
+  const { t } = useLocale();
+  const segments = [
+    { name: 'Electronics', value: '42%', tone: 'blue' },
+    { name: 'Furniture', value: '28%', tone: 'violet' },
+    { name: 'Subscriptions', value: '18%', tone: 'mint' },
+    { name: 'Other', value: '12%', tone: 'amber' },
+  ];
+  return <div className="category-distribution">
+    <div className="category-donut"><div><strong>1,284</strong><span>{t('products')}</span></div></div>
+    <div className="category-legend">{segments.map((segment) => <div key={segment.name}><i className={segment.tone} /><span>{t(segment.name)}</span><strong>{segment.value}</strong></div>)}</div>
+  </div>;
+}
+
+const topProducts = [
+  { name: 'Wireless Headset', detail: 'Audio · WH-240', sold: '842 units', tone: 'blue' },
+  { name: 'USB-C Hub Pro', detail: 'Accessories · HC-110', sold: '624 units', tone: 'violet' },
+  { name: 'Ergonomic Desk Chair', detail: 'Furniture · DC-480', sold: '518 units', tone: 'amber' },
+  { name: 'Studio Monitor 4K', detail: 'Displays · SM-400', sold: '386 units', tone: 'mint' },
+  { name: 'Standing Desk Frame', detail: 'Furniture · SF-220', sold: '294 units', tone: 'rose' },
+];
+
+function TopProducts() {
+  const { t } = useLocale();
+  return <div className="top-products">{topProducts.map((product, index) => <article key={product.name}>
+    <span className={`product-rank ${product.tone}`}>{index + 1}</span>
+    <span className={`product-thumb ${product.tone}`}><Icon name="boxes" size={16} /></span>
+    <span className="product-copy"><strong>{t(product.name)}</strong><small>{t(product.detail)}</small></span>
+    <b>{t(product.sold)}</b>
+  </article>)}</div>;
+}
+
+function RecentOrders() {
+  const { t, locale } = useLocale();
+  const orders = [
+    { id: '#NX-2841', customer: 'Meridian Studio', date: 'Today, 10:42', amount: '$2,480.00', status: 'Delivered' },
+    { id: '#NX-2840', customer: 'Northstar Health', date: 'Today, 09:18', amount: '$1,840.00', status: 'Processing' },
+    { id: '#NX-2839', customer: 'Atlas Commerce', date: 'Yesterday', amount: '$960.00', status: 'Cancelled' },
+  ];
+  return <div className="table-wrap dashboard-orders"><table lang={locale}>
+    <thead><tr>{['Order ID', 'Client', 'Date', 'Total', 'Status'].map((heading) => <th key={heading}>{t(heading)}</th>)}</tr></thead>
+    <tbody>{orders.map((order) => <tr key={order.id}><td>{order.id}</td><td>{t(order.customer)}</td><td>{t(order.date)}</td><td>{order.amount}</td><td><span className={`order-status ${order.status.toLowerCase()}`}>{t(order.status)}</span></td></tr>)}</tbody>
+  </table></div>;
+}
+
+function OverviewPage({ onRun, onOpenAssistant, deals, invoices, stock }: { onRun: (prompt: string) => void; onOpenAssistant: () => void; deals: number; invoices: number; stock: number }) {
   const { t, locale, direction } = useLocale();
-  return <><PageHeading page="Overview" description="Your workspace, with clarity and calm. Everything you need in one place." /><WelcomeTour /><div className="metrics-grid zen-metrics"><Metric label="Total profit" value="$84,590" delta="+12.8%" icon="wallet" /><Metric label="Active users" value="2,840" delta="+8.2%" icon="users" tone="violet" /><Metric label="Inventory liquidity" value="$92,640" delta="+6.4%" icon="boxes" tone="blue" /></div><section className="zen-host"><VoiceAssistant onRun={onRun} page="Overview" /></section><section className="zen-disclosures" lang={locale} dir={direction}><details className="zen-disclosure"><summary><span className="disclosure-icon mint"><Icon name="chart" size={17} /></span><span className="disclosure-copy"><strong>{t('Financial overview')}</strong><small>{t('A simple view of revenue and growth trends')}</small></span><span className="disclosure-hint">{t('View details')}</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content"><Panel className="revenue-panel"><PanelTitle title="Revenue overview" subtitle="Your revenue is up 12.8% from last year" /><div className="chart-key"><span><i className="key-dot" />{t('Revenue')}</span><b>$284,590 <small>+12.8%</small></b></div><RevenueChart /></Panel></div></details><details className="zen-disclosure"><summary><span className="disclosure-icon blue"><Icon name="boxes" size={17} /></span><span className="disclosure-copy"><strong>{t('Orders, tasks, and alerts')}</strong><small>{t('Daily operations, organized in one place')}</small></span><span className="disclosure-hint">{t('View details')}</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content"><ArabicOperations /></div></details><details className="zen-disclosure"><summary><span className="disclosure-icon violet"><Icon name="spark" size={17} /></span><span className="disclosure-copy"><strong>{t('Latest company updates')}</strong><small>{t('Recent activity and sales stages')}</small></span><span className="disclosure-hint">{t('View details')}</span><Icon className="disclosure-chevron" name="chevron" size={16} /></summary><div className="disclosure-content activity-disclosure"><Panel><PanelTitle title="Recent activity" /><div className="activity-list"><Activity icon="check" title="Invoice paid" detail="INV-2026-084 · Meridian Studio" time="2 min ago" /><Activity icon="users" title="New customer added" detail="Riley Cooper · Northstar Health" time="18 min ago" /><Activity icon="boxes" title="Stock running low" detail="Wireless Headset · 8 remaining" time="1 hr ago" /></div></Panel></div></details></section></>;
+  const [assistantPrompt, setAssistantPrompt] = useState('');
+  const submitPrompt = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const request = assistantPrompt.trim();
+    if (!request) return;
+    onRun(request);
+    setAssistantPrompt('');
+  };
+  return <div className="overview-dashboard" lang={locale} dir={direction}>
+    <PageHeading page="Overview" description="Your workspace, with clarity and calm. Everything you need in one place." action={<span className="dashboard-demo-badge">{t('Illustrative dashboard')}</span>} />
+    <WelcomeTour deals={deals} invoices={invoices} stock={stock} />
+    <div className="metrics-grid overview-metrics">
+      <Metric label="Total profit" value="$84,590" delta="+12.8%" icon="wallet" />
+      <Metric label="Total sales" value="$284,590" delta="+8.2%" icon="trend" tone="blue" />
+      <Metric label="Total inventory" value="1,284" delta="+6.4%" icon="boxes" tone="violet" />
+      <Metric label="Total customers" value="2,840" delta="+4.6%" icon="users" tone="amber" />
+    </div>
+    <section className="assistant-hub">
+      <div className="assistant-hub-copy"><span className="assistant-label"><span className="live-dot" />NEXORA INTELLIGENCE</span><h2>{t('Nexora Smart Assistant')}</h2><p>{t('Get clear answers and suggested actions for your workspace.')}</p>
+        <form className="assistant-prompt-form" onSubmit={submitPrompt}><input value={assistantPrompt} onChange={(event) => setAssistantPrompt(event.target.value)} placeholder={t('Try: Generate quarter sales report')} aria-label={t('Ask Nexora Smart Assistant')} /><button type="submit" aria-label={t('Start now')}><Icon name="arrow" size={16} /></button></form>
+      </div>
+      <button className="assistant-start" onClick={onOpenAssistant}>{t('Start now')}<Icon name="arrow" size={15} /></button>
+    </section>
+    <div className="dashboard-grid overview-charts">
+      <Panel className="timeline-panel"><PanelTitle title="Sales performance" subtitle="Revenue over the last seven days" action={<span className="chart-period">{t('Last 7 days')}</span>} /><SalesTimeline /></Panel>
+      <Panel className="distribution-panel"><PanelTitle title="Category distribution" subtitle="Sales mix by business category" /><CategoryDistribution /></Panel>
+    </div>
+    <div className="dashboard-grid overview-lists">
+      <Panel className="orders-panel"><PanelTitle title="Recent orders" subtitle="Latest transactions and order status" action={<button className="text-button" onClick={() => window.dispatchEvent(new CustomEvent('nexus:navigate', { detail: 'Sales & CRM' }))}>{t('View all')}<Icon name="arrow" size={13} /></button>} /><RecentOrders /></Panel>
+      <Panel className="products-panel"><PanelTitle title="Top performing products" subtitle="Best sellers this month" /><TopProducts /></Panel>
+    </div>
+    <div className="dashboard-grid overview-activity">
+      <Panel><PanelTitle title="Recent activity" subtitle="Latest workspace updates" /><div className="activity-list"><Activity icon="check" title="Invoice paid" detail="INV-2026-084 · Meridian Studio" time="5 min ago" /><Activity icon="users" title="New customer added" detail="Riley Cooper · Northstar Health" time="18 min ago" /><Activity icon="boxes" title="Stock running low" detail="Wireless Headset · 8 remaining" time="1 hr ago" /></div></Panel>
+      <Panel><PanelTitle title="Schedules & tasks" subtitle="Your team's priorities for today" /><ArabicOperations /></Panel>
+    </div>
+    <section className="overview-assistant" aria-label={t('Nexora Smart Assistant')}><VoiceAssistant onRun={onRun} page="Overview" /></section>
+  </div>;
 }
 
 function ArabicOperations() {
@@ -472,13 +619,28 @@ export function App() {
   const { locale, direction, setLocale, t } = useLocale();
   const [accessStage, setAccessStage] = useState<AccessStage>('checking');
   const [authAttempt, setAuthAttempt] = useState(0);
-  const [authError, setAuthError] = useState('');
+  const [authError, setAuthError] = useState(() => {
+    const reason = new URLSearchParams(window.location.search).get('auth_error');
+    if (!reason) return '';
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    const errors: Record<string, string> = {
+      google_not_configured: 'Google sign-in is not configured for this deployment.',
+      service_unavailable: 'Authentication is temporarily unavailable. Please try again.',
+      google_cancelled: 'Google sign-in was cancelled.',
+      google_invalid_state: 'Google sign-in could not be verified. Please try again.',
+      google_unavailable: 'Google sign-in is temporarily unavailable. Please try again.',
+      google_invalid_identity: 'Google could not verify this identity.',
+      google_account_error: 'This Google account could not be connected.',
+    };
+    return errors[reason] ?? 'Identity verification failed. Please retry.';
+  });
   const [authMode, setAuthMode] = useState<AuthMode>('sign-in');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [activePage, setActivePage] = useState<PageId>('Overview');
+  const [selectedNav, setSelectedNav] = useState('Home');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [commandOpen, setCommandOpen] = useState(false);
   const [trayOpen, setTrayOpen] = useState(false);
@@ -587,12 +749,16 @@ export function App() {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setExecution(title);
     setWorkflows((current) => [{ id: Date.now(), title, state: 'running' as const, time: now }, ...current].slice(0, 4));
+    const invoiceTotal = data.invoices.reduce((sum, invoice) => {
+      const amount = Number.parseFloat(invoice.amount.replace(/[^\d.-]/gu, ''));
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
     if (normalized.includes('payroll')) setToast(t('Demo payroll review complete — sample data only.'));
-    else if (normalized.includes('inventory')) setToast(t('Demo inventory review complete — sample data only.'));
-    else if (normalized.includes('cash flow')) setToast(t('Demo cash flow summary is ready — sample data only.'));
-    else if (normalized.includes('synced leads')) setToast(t('Demo leads are ready in Sales & CRM.'));
-    else setToast(t('Demo sales report is ready — sample data only.'));
-  }, [t]);
+    else if (normalized.includes('inventory')) setToast(`${t('Workspace inventory snapshot')}: ${data.inventoryOnHand} ${t('units on hand')}.`);
+    else if (normalized.includes('cash flow')) setToast(`${t('Workspace invoice snapshot')}: ${data.invoices.length} ${t('invoices')} · $${invoiceTotal.toLocaleString(locale)}.`);
+    else if (normalized.includes('synced leads')) setToast(`${t('Workspace CRM snapshot')}: ${data.deals.length} ${t('opportunities')}.`);
+    else setToast(`${t('Workspace sales snapshot')}: ${data.invoices.length} ${t('invoices')} · ${data.deals.length} ${t('CRM opportunities')}.`);
+  }, [data, locale, t]);
 
   useEffect(() => {
     const activeWorkflows = workflows.filter((workflow) => workflow.state === 'running');
@@ -610,7 +776,7 @@ export function App() {
   }, [toast]);
 
   useEffect(() => {
-    const appName = import.meta.env.VITE_APP_NAME || 'Nexus business ERP SaaS OS';
+    const appName = import.meta.env.VITE_APP_NAME || 'Nexora Business OS';
     document.documentElement.dataset.environment = import.meta.env.VITE_APP_ENVIRONMENT || 'demo';
     document.title = `${t(activePage)} · ${appName}`;
   }, [activePage, t]);
@@ -628,7 +794,11 @@ export function App() {
     };
     const handleNavigation = (event: Event) => {
       const page = (event as CustomEvent<PageId>).detail;
-      if (navigation.some((item) => item.id === page)) setActivePage(page);
+      const item = navigation.find((entry) => entry.id === page);
+      if (item) {
+        setActivePage(page);
+        setSelectedNav(item.label);
+      }
     };
     window.addEventListener('keydown', handleKey);
     window.addEventListener('nexus:navigate', handleNavigation);
@@ -674,6 +844,8 @@ export function App() {
       setAuthMode('sign-in');
       setAuthError('');
       setAccessStage('unauthorized');
+      setActivePage('Overview');
+      setSelectedNav('Home');
     } catch (error) {
       console.error('Could not sign out securely.', error);
       setToast(t('Sign-out failed. Please try again.'));
@@ -698,7 +870,7 @@ export function App() {
   };
 
   const filteredNavigation = navigation.filter((item) =>
-    `${item.id} ${t(item.id)}`.toLowerCase().includes(search.toLowerCase()),
+    `${item.label} ${t(item.label)}`.toLowerCase().includes(search.toLowerCase()),
   );
 
   if (accessStage !== 'workspace') {
@@ -737,9 +909,9 @@ export function App() {
   return <div className="app-shell" data-theme={theme} dir={direction} lang={locale}>
     <aside className="sidebar">
       <div>
-        <button className="brand-lockup" aria-label={`${t('Nexus business ERP SaaS OS')} home`} onClick={() => setActivePage('Overview')}>
+        <button className="brand-lockup" aria-label={`${t('Nexora Business OS')} home`} onClick={() => { setActivePage('Overview'); setSelectedNav('Home'); }}>
           <span className="brand-symbol"><span /><span /><span /><span /></span>
-          <span className="brand-name">nexus<span>business ERP SaaS OS</span></span>
+          <span className="brand-name">nexora<span>business operating system</span></span>
         </button>
         <div className="workspace-switcher">
           <span className="workspace-mark">N</span>
@@ -748,11 +920,11 @@ export function App() {
         </div>
         {Object.entries(groupedItems).map(([group, items]) => <nav className="nav-group" key={group} aria-label={t(group)}>
           <p className="nav-label">{t(group)}</p>
-          {items.map((item) => <button key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
+          {items.map((item) => <button key={item.label} className={`nav-item ${selectedNav === item.label ? 'active' : ''}`} onClick={() => { setActivePage(item.id); setSelectedNav(item.label); }}>
             <Icon name={item.icon} size={17} />
-            <span>{t(item.id)}</span>
-            {item.id === 'Analytics' && <i className="nav-count">٣</i>}
-            {item.id === 'Inventory' && <i className="nav-count">٢</i>}
+            <span>{t(item.label)}</span>
+            {item.label === 'Reports' && <i className="nav-count">٣</i>}
+            {item.label === 'Inventory' && <i className="nav-count">٢</i>}
           </button>)}
         </nav>)}
       </div>
@@ -761,11 +933,22 @@ export function App() {
           <span className="upgrade-icon"><Icon name="spark" size={16} /></span>
           <strong>{t('Make your business more efficient')}</strong>
           <p>{t('Discover AI capabilities for your team.')}</p>
-          <button onClick={() => setActivePage('AI assistant')}>{t('Explore Nexus assistant')} <Icon name="arrow" size={13} /></button>
+          <button onClick={() => { setActivePage('AI assistant'); setSelectedNav('AI assistant'); }}>{t('Explore Nexora assistant')} <Icon name="arrow" size={13} /></button>
         </div>
+        <section className="subscription-widget">
+          <div><strong>{t('Free trial')}</strong><span>{t('5 days left')}</span></div>
+          <div className="subscription-track"><i /></div>
+          <small>{t('Trial usage')} · 75%</small>
+        </section>
+        <button className="support-widget" onClick={() => setToast(t('Support is not connected in this workspace.'))}>
+          <span className="support-presence" />
+          <span><strong>{t('Need a hand?')}</strong><small>{t('Contact support')}</small></span>
+          <Icon name="arrow" size={14} />
+        </button>
         <button className="profile-button" onClick={signOut}>
           <span className="profile-avatar">{userEmail.slice(0, 2).toUpperCase()}</span>
           <span><strong>{userEmail}</strong><small>{t('Workspace manager · Sign out')}</small></span>
+          <i className="profile-notification-count">3</i>
           <Icon name="more" size={16} />
         </button>
       </div>
@@ -783,7 +966,7 @@ export function App() {
       </header>
       <div className="page-content">
         <ModuleErrorBoundary key={activePage} label={t(activePage)}>
-        {activePage === 'Overview' && <OverviewPage onRun={runAction} />}
+        {activePage === 'Overview' && <OverviewPage onRun={runAction} onOpenAssistant={() => { setActivePage('AI assistant'); setSelectedNav('AI assistant'); }} deals={deals.length} invoices={invoices.length} stock={stock} />}
         {activePage === 'AI assistant' && <AssistantPage onRun={runAction} execution={execution} />}
         {activePage === 'Finance' && <FinancePage invoices={invoices} onAddTransaction={addDemoTransaction} inventoryOnHand={stock} />}
         {activePage === 'Sales & CRM' && <CrmPage deals={deals} setDeals={setDeals} />}
@@ -793,12 +976,12 @@ export function App() {
         {activePage === 'Integrations' && <IntegrationHub onSyncLead={syncSocialLead} />}
         </ModuleErrorBoundary>
       </div>
-      <footer className="app-footer"><span><i className="health-dot mint" />{t('All systems operational')}</span><span>© 2026 Nexus business ERP SaaS OS <span className="footer-separator">·</span> {t('Built for better business')}</span></footer>
+      <footer className="app-footer"><span><i className="health-dot mint" />{t('All systems operational')}</span><span>© 2026 Nexora Business OS <span className="footer-separator">·</span> {t('Built for better business')}</span></footer>
     </main>
     {activePage !== 'Overview' && activePage !== 'AI assistant' && <AssistantDock page={activePage} onRun={runAction} />}
     <button className={`system-tray-button ${workflows.some((workflow) => workflow.state === 'running') ? 'has-running' : ''}`} onClick={() => setTrayOpen((open) => !open)} aria-label={`Background workflows${workflows.some((workflow) => workflow.state === 'running') ? ', running' : ''}`}><span className="tray-pulse" /><Icon name="command" size={17} />{workflows.some((workflow) => workflow.state === 'running') && <i />}</button>
     {trayOpen && <div className="workflow-tray"><div className="tray-heading"><div><strong>{t('Background activity')}</strong><span>{workflows.filter((workflow) => workflow.state === 'running').length} {t('running')}</span></div><button className="icon-button" onClick={() => setTrayOpen(false)} aria-label={t('Close activity panel')}><Icon name="close" size={16} /></button></div>{workflows.length ? workflows.map((workflow) => <div className="workflow-item" key={workflow.id}><span className={`workflow-status ${workflow.state}`}><Icon name={workflow.state === 'complete' ? 'check' : 'clock'} size={14} /></span><span><strong>{t(workflow.title)}</strong><small>{workflow.state === 'complete' ? t('Completed') : t('Working in the background')} · {workflow.time}</small></span></div>) : <p className="empty-state">{t('Your background activity will appear here.')}</p>}</div>}
-    {commandOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}><section className="command-modal" role="dialog" aria-modal="true" aria-label={t('Search Nexus')}><div className="command-input"><Icon name="search" size={19} /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Search pages and tools…')} /><kbd>ESC</kbd></div><span className="command-caption">{t('PAGES & WORKSPACES')}</span>{filteredNavigation.map((item) => <button className="command-result" key={item.id} onClick={() => { setActivePage(item.id); setCommandOpen(false); setSearch(''); }}><span className="command-icon"><Icon name={item.icon} size={16} /></span>{t(item.id)}<kbd>↵</kbd></button>)}{filteredNavigation.length === 0 && <p className="empty-state">{t('No matching pages. Try another search.')}</p>}<div className="command-hint"><Icon name="command" size={14} />{t('Nexus global search')} <span>{t('Search your business, naturally.')}</span></div></section></div>}
+    {commandOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}><section className="command-modal" role="dialog" aria-modal="true" aria-label={t('Search Nexora')}><div className="command-input"><Icon name="search" size={19} /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Search pages and tools…')} /><kbd>ESC</kbd></div><span className="command-caption">{t('PAGES & WORKSPACES')}</span>{filteredNavigation.map((item) => <button className="command-result" key={item.label} onClick={() => { setActivePage(item.id); setSelectedNav(item.label); setCommandOpen(false); setSearch(''); }}><span className="command-icon"><Icon name={item.icon} size={16} /></span>{t(item.label)}<kbd>↵</kbd></button>)}{filteredNavigation.length === 0 && <p className="empty-state">{t('No matching pages. Try another search.')}</p>}<div className="command-hint"><Icon name="command" size={14} />{t('Nexora global search')} <span>{t('Search your business, naturally.')}</span></div></section></div>}
     {toast && <div className="toast" role="status"><span><Icon name="check" size={16} /></span>{toast}<button onClick={() => setToast('')} aria-label={t('Dismiss notification')}><Icon name="close" size={14} /></button></div>}
   </div>;
 }

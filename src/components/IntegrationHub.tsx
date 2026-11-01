@@ -52,7 +52,7 @@ export function IntegrationHub({ onSyncLead }: { onSyncLead: (channelName: strin
   return <div className="integration-page" dir={direction} lang={locale}>
     <header className="integration-heading">
       <div>
-        <p className="eyebrow">{t('NEXUS · DEMO CONNECTORS')}</p>
+        <p className="eyebrow">{t('NEXORA · DEMO CONNECTORS')}</p>
         <h1>{t('الربط الذكي الموحد وقنوات الذكاء الاصطناعي')}</h1>
         <p className="integration-description">{t('إدارة قنوات التواصل ومزامنة العملاء المحتملين ضمن مساحة عملك.')}</p>
       </div>
@@ -68,7 +68,7 @@ export function IntegrationHub({ onSyncLead }: { onSyncLead: (channelName: strin
 
     <section className="integration-callout">
       <span className="integration-ai-mark"><HubIcon><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 14 .8 2.2L22 17l-2.2.8L19 20l-.8-2.2L15 17l2.2-.8L19 14Z" /></HubIcon></span>
-      <div><strong>{t('مساعد Nexus · معالجة تجريبية')}</strong><p>{t('محاكاة تحليل الرسائل الواردة، إعداد الردود، وربط بيانات العملاء بوحدة إدارة علاقات العملاء.')}</p></div>
+      <div><strong>{t('مساعد Nexora · معالجة تجريبية')}</strong><p>{t('محاكاة تحليل الرسائل الواردة، إعداد الردود، وربط بيانات العملاء بوحدة إدارة علاقات العملاء.')}</p></div>
       <span className="simulation-running"><i />{t('تحديث تجريبي')}</span>
     </section>
 

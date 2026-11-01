@@ -1,4 +1,4 @@
-# Nexus business ERP SaaS OS — Project Audit Trace
+# Nexora Business OS — Project Audit Trace
 
 **Audit snapshot:** 2026-10-29
 **Repository branch:** `main`
@@ -15,7 +15,7 @@ The sections below preserve the earlier client-demo audit as historical context.
 - Replaced the prior Access-JWT identity dependency with native D1-backed email/password registration, sign-in, session lookup, and sign-out Pages Functions.
 - Passwords are salted and hashed server-side with PBKDF2-SHA-256; session identifiers are random opaque tokens, stored in D1 only as SHA-256 hashes, and delivered through Secure, HttpOnly, SameSite cookies.
 - Added same-origin mutation checks, bounded JSON request bodies, generic credential errors, and per-client-IP authentication throttling. No shared global passcode or client-side authenticated flag is used.
-- Google OAuth, email verification, password recovery, tenant membership/roles, and audit history are not implemented. They require separate provider/account lifecycle configuration before production use.
+- Google OAuth code supports authorization code + PKCE, one-time D1 state/nonce validation, verified-email ID token checks, and account linking; configure the Google client ID/secret and callback in Cloudflare before use. Email verification for native accounts, password recovery, tenant membership/roles, and audit history are not implemented.
 
 ### D1 workspace persistence
 

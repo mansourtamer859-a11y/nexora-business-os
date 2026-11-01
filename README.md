@@ -1,4 +1,4 @@
-# Nexus business ERP SaaS OS
+# Nexora Business OS
 
 A responsive React/TypeScript ERP workspace with Cloudflare Pages Functions. Authenticated CRM opportunities, finance invoice rows, and inventory counts are stored in per-identity D1 records. People operations, analytics, forecasts, social integrations, and assistant actions still include demo behavior; see the system boundaries below.
 
@@ -44,20 +44,22 @@ The workflow at `.github/workflows/pages-deploy.yml` validates, builds, applies 
 
 The workflow validates the checked-in D1 binding, applies pending D1 migrations, and deploys Pages. A successful Git push or manual workflow dispatch is still required; Actions cannot bypass missing GitHub or Cloudflare credentials. Cloudflare plan limits and D1 usage determine costs; neither zero cost nor customer provisioning is guaranteed.
 
+For Google sign-in, configure `GOOGLE_CLIENT_ID` as a Pages Function environment variable and `GOOGLE_CLIENT_SECRET` as a Pages Function secret. Register `https://<your-pages-hostname>/api/auth/google/callback` as an authorized Google OAuth redirect URI. Google sign-in remains unavailable until those provider settings are configured.
+
 The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise authentication and the workspace API. The app fails closed when the session endpoint or D1 is unavailable.
 
 The client is rendered with React `createRoot` (not server-rendered/hydrated). The dashboard uses browser-supported `content-visibility` for off-screen panels, and initial workspace reads retry transient serverless/network failures up to three attempts before showing a retryable error state. These measures reduce unnecessary rendering and soften cold starts; they do not guarantee a 60 fps frame rate on every device. React error boundaries catch render/lifecycle errors, not network or serverless exceptions; API errors are handled by the data hook and surfaced in the UI.
 
 ## Arabic and English
 
-The workspace supports Arabic (RTL) and English (LTR). Use the language control in the top bar; the preference is stored in browser local storage when available. Arabic is the initial language. This prototype keeps sample records local, and some company/product names and sample dates are intentionally retained as proper names or data values rather than translated UI labels.
+The workspace supports Arabic (RTL) and English (LTR). Use the language control in the top bar; the preference is stored in browser local storage when available. Arabic is the initial language. Locale resources live in `src/i18n/translations/ar.json` and `src/i18n/translations/en.json`. The onboarding snapshot summarizes authenticated CRM, invoice, and inventory counts from the workspace API; it is a deterministic status summary, not generated AI advice. Dashboard overview charts and several non-core modules use clearly marked illustrative sample values.
 
 The runtime bundle is limited to React and React DOM; unused Supabase and router packages were removed. Vite is a development/build dependency and is not required to serve the built static assets.
 
 ## Workspace modules
 
 - **Overview** — Revenue metrics, business activity, sales pipeline, and AI assistant.
-- **AI assistant** — Simulated voice prompts, execution status, and business actions.
+- **AI assistant** — Allow-listed demo voice prompts and status updates; there is no configured LLM provider or quota-bypass/key-pool mechanism.
 - **Finance** — Cash flow, recurring revenue, expense distribution, and invoice status.
 - **Sales & CRM** — Drag-and-drop sales stages with keyboard/touch-friendly move controls.
 - **People** — Employee directory, payroll metrics, and team schedule.
@@ -75,10 +77,11 @@ Use **⌘ K** (or **Ctrl K**) to search and switch modules. The theme control in
 - `/api/auth/session` validates an opaque random session cookie against its SHA-256 hash in D1. The cookie is Secure, HttpOnly, SameSite=Lax, and expires after seven days. `/api/auth/session` DELETE revokes the stored session. There is no client-side authentication flag or hardcoded global passcode.
 - `/api/business-data` requires a valid server-side session for each read and write. It accepts same-origin JSON writes only, enforces payload limits and schema validation, uses prepared D1 statements, scopes records to the authenticated user, disables caching, and applies a revision check to prevent silent overwrites.
 - CRM deals, finance invoice rows, and inventory counts load from and save to D1. D1 data is per account; tenant memberships, roles, shared workspaces, email verification, password recovery, and audit history are not yet modeled.
-- Google OAuth is not implemented/configured. A production OAuth flow requires provider credentials, callback configuration, verified ID tokens, and an account-linking policy. Do not present a simulated provider button as authentication.
+- Google OAuth uses authorization code + PKCE, one-time server-stored state/nonce, Google JWKS ID-token signature and claim validation, and verified-email account linking. Configure the provider credentials and callback URL above before enabling it in production.
+- The requested global passcode is intentionally not implemented: any passcode embedded in a public Vite bundle can be extracted and bypassed, so it cannot serve as an authentication control.
 
 The microphone requests browser permission, captures audio for local level metering, and uses the browser's Web Speech recognition implementation to match only approved phrases. It is not a streaming AI provider integration; speech recognition behavior and possible vendor processing depend on the browser. Assistant actions, HR records, analytics charts, invoice file scanning, forecasts, and social channel activity remain demo behavior. Do not interpret simulated totals, channel status, or assistant output as authoritative business data. The invoice archiver only inspects file metadata and does not upload or parse document contents.
 
-`npm run typecheck` checks both the React app and the Pages Functions. Production deployment still requires a real D1 database binding, applied migrations, HTTPS, account lifecycle controls (including email verification and password recovery), tenant authorization requirements, and environment-level validation. No source-only implementation can verify a live Cloudflare account or database configuration.
+`npm run typecheck` checks both the React app and the Pages Functions. Production deployment still requires a real D1 database binding, applied migrations, HTTPS, Google provider configuration where used, account lifecycle controls (including email verification and password recovery), tenant authorization requirements, and environment-level validation. No source-only implementation can verify a live Cloudflare account or database configuration.
 
 For the engineering milestone history, validation evidence, and security boundary assessment, see [PROJECT_AUDIT.md](./PROJECT_AUDIT.md).
