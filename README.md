@@ -48,7 +48,16 @@ For Google sign-in, configure `GOOGLE_CLIENT_ID` as a Pages Function environment
 
 For the optional shared access gate, configure `NEXORA_GATE_PASSCODE` and `NEXORA_GATE_SIGNING_KEY` as Cloudflare Pages Function secrets. Set the passcode out of band to the value your administrators selected; it is never embedded in the Vite bundle. The signing key must be at least 32 characters of cryptographically random data. The gate grants a 12-hour signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie; D1-backed IP rate limiting applies to passcode attempts. The gate is defense in depth, not a replacement for native user authentication. Its secrets are required for auth, workspace, and assistant routes; if they are unset, those routes fail closed. For local Pages-runtime testing, supply both secrets through the runtime's local secret facility, not committed files.
 
-For the authenticated AI gateway, configure `GEMINI_API_KEY` as a Cloudflare Pages Function secret; never add it to `VITE_*`, `.env.example`, or committed files. Optionally set `GEMINI_MODELS` to a comma-separated subset of `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash`. Model fallback is used only when a configured model is unavailable or the upstream service fails; HTTP 429 responses are returned to the user rather than bypassed with another model or key. Provider quotas and terms still apply. The gateway requires a native authenticated session, reads only the signed-in user's workspace record, and sends aggregate CRM/invoice/inventory counts—not individual records—to Gemini as context. Submitted prompts and attached files are sent to Google after the user submits. PDF, CSV, Markdown, plain text, and supported audio uploads are limited to 1 MB; spreadsheet binary formats are not parsed.
+For the authenticated AI gateway, configure these **Pages Function runtime variables**:
+
+- `ACTIVE_AI_PROVIDER`: `openai-compatible` or `anthropic`.
+- `ACTIVE_AI_PROVIDER_URL`: the full HTTPS API endpoint. For example, Groq uses `https://api.groq.com/openai/v1/chat/completions`, OpenAI uses `https://api.openai.com/v1/chat/completions`, and Anthropic uses `https://api.anthropic.com/v1/messages`.
+- `TARGET_MODEL_NAME`: a model supported by the selected provider.
+- `AI_API_KEY`: the provider key, configured as a Cloudflare Pages Function secret. Never put it in `VITE_*`, `.env.example`, or committed files.
+- `AI_ALLOWED_HOSTS`: optional comma-separated exact public hostnames to add for a self-hosted OpenAI-compatible provider. The URL must use HTTPS and a host in this allowlist; redirects are rejected.
+- `AI_AUDIO_MODEL_NAME`: optional transcription model for OpenAI-compatible providers. Audio requests require it and use the matching `/audio/transcriptions` endpoint.
+
+The gateway supports OpenAI-compatible chat-completions APIs (including compatible Groq endpoints) and Anthropic Messages. Anthropic accepts PDF documents; OpenAI-compatible endpoints accept extracted text documents. Audio transcription is available only through an OpenAI-compatible endpoint configured with `AI_AUDIO_MODEL_NAME`; the browser can read generated responses aloud. The gateway requires the access gate and native authenticated session, reads only the signed-in user's workspace record, and sends aggregate CRM/invoice/inventory counts—not individual records—as context. Submitted prompts, documents, and audio are sent to the configured provider only after submission. Uploads are limited to 1 MB; spreadsheet binary formats are not parsed. Provider compatibility, quotas, and terms still apply. The gateway does not rotate keys/providers or bypass HTTP 429 rate limits.
 
 The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise authentication and the workspace API. The app fails closed when the session endpoint or D1 is unavailable.
 
@@ -63,7 +72,7 @@ The runtime bundle is limited to React and React DOM; unused Supabase and router
 ## Workspace modules
 
 - **Overview** — Revenue metrics, business activity, sales pipeline, and AI assistant.
-- **AI assistant** — Allow-listed demo voice actions plus an authenticated Gemini text/document/audio gateway. The browser's speech synthesis can read answers aloud. Provider setup is required, and provider limits are respected; no key pool or quota bypass is used.
+- **AI assistant** — Allow-listed demo voice actions plus an authenticated, provider-configurable text/document/audio gateway. The browser's speech synthesis can read answers aloud. Provider setup is required, and provider limits are respected; no key pool or quota bypass is used.
 - **Finance** — Cash flow, recurring revenue, expense distribution, and invoice status.
 - **Sales & CRM** — Drag-and-drop sales stages with keyboard/touch-friendly move controls.
 - **People** — Employee directory, payroll metrics, and team schedule.
