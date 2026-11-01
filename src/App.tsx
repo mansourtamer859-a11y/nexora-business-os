@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { IntegrationHub } from './components/IntegrationHub';
 import { ForecastPanel } from './components/ForecastPanel';
 import { InvoiceArchiver } from './components/InvoiceArchiver';
@@ -14,6 +14,7 @@ type PageId = 'Overview' | 'AI assistant' | 'Finance' | 'Sales & CRM' | 'People'
 type IconName = 'grid' | 'spark' | 'wallet' | 'users' | 'briefcase' | 'boxes' | 'chart' | 'search' | 'bell' | 'chevron' | 'arrow' | 'mic' | 'play' | 'clock' | 'check' | 'plus' | 'more' | 'sun' | 'moon' | 'command' | 'trend' | 'close' | 'share';
 type Workflow = { id: number; title: string; state: 'running' | 'complete'; time: string };
 type AccessStage = 'checking' | 'unauthorized' | 'error' | 'workspace';
+type AuthMode = 'sign-in' | 'register';
 
 function waitForIdentityRetry(delayMs: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -62,12 +63,25 @@ async function fetchIdentityResponse(signal: AbortSignal): Promise<Response> {
 
 function identityResponseError(status: number): Error {
   if (status === 404) {
-    return new Error('The sign-in endpoint is not deployed. Deploy the Pages Functions and retry.');
+    return new Error('The authentication endpoint is not deployed. Deploy the Pages Functions and retry.');
   }
   if (status >= 500) {
-    return new Error(`Identity verification is temporarily unavailable (HTTP ${status}). Check Cloudflare Access configuration.`);
+    return new Error(`Identity verification is temporarily unavailable (HTTP ${status}). Check the Pages Functions and D1 configuration.`);
   }
   return new Error(`Identity verification failed (HTTP ${status}).`);
+}
+
+async function parseIdentityResponse(response: Response): Promise<unknown> {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  if (!contentType.includes('application/json') && !contentType.includes('+json')) {
+    throw new Error('The authentication endpoint returned HTML instead of JSON. Deploy the Pages Function for /api/auth/session; sign-in is unavailable until it is configured.');
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    throw new Error('The identity endpoint returned invalid JSON. Deploy or repair the Pages Function for /api/auth/session.');
+  }
 }
 
 const navigation: { id: PageId; icon: IconName; group: string }[] = [
@@ -176,10 +190,28 @@ function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; v
 function IdentityScreen({
   status,
   message,
+  mode,
+  email,
+  password,
+  busy,
+  allowAuth,
+  onEmailChange,
+  onPasswordChange,
+  onModeChange,
+  onSubmit,
   onRetry,
 }: {
   status: 'checking' | 'unauthorized' | 'error' | 'loading-data';
   message?: string;
+  mode: AuthMode;
+  email: string;
+  password: string;
+  busy: boolean;
+  allowAuth: boolean;
+  onEmailChange: (email: string) => void;
+  onPasswordChange: (password: string) => void;
+  onModeChange: (mode: AuthMode) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onRetry: () => void;
 }) {
   const { t, direction, locale } = useLocale();
@@ -197,16 +229,23 @@ function IdentityScreen({
     <section className="security-card identity-card">
       <div className="security-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXUS<span>BUSINESS ERP SAAS OS</span></span></div>
       <div className="security-emblem"><span /><Icon name="command" size={22} /><i /></div>
-      <p className="security-overline">CLOUDFLARE ACCESS · OIDC</p>
-      <h1>{t(title)}</h1>
+      <p className="security-overline">NEXORA SECURE SIGN-IN</p>
+      <h1>{t(allowAuth ? (mode === 'sign-in' ? 'Sign in to your workspace' : 'Create your account') : title)}</h1>
       <p className="security-description">{t(status === 'unauthorized'
-        ? 'Sign in through your organization identity provider. Cloudflare Access verifies your session before business data is returned.'
+        ? 'Sign in with your email and password to open your private workspace.'
         : status === 'error'
-          ? 'The identity or workspace service could not be verified. Check the Cloudflare Access and D1 configuration, then retry.'
-          : 'The application is checking your organization identity and loading server-stored workspace data.')}</p>
+          ? 'The authentication or workspace service could not be verified. Check the service configuration, then retry.'
+          : 'The application is verifying your session and loading workspace data.')}</p>
       {message && <p className="session-notice" role="alert">{t(message)}</p>}
-      {(status === 'unauthorized' || status === 'error') && <button className="gate-submit identity-retry" onClick={onRetry}>{t('Retry identity verification')}<Icon name="arrow" size={16} /></button>}
-      <div className="security-footnote"><span><i />{t('SERVER-VERIFIED IDENTITY')}</span><span>ACCESS TOKEN NEVER STORED IN APP</span></div>
+      {allowAuth && <form className="native-auth-form" onSubmit={onSubmit}>
+        <label>{t('Email address')}<input autoComplete="email" type="email" required maxLength={254} value={email} onChange={(event) => onEmailChange(event.target.value)} /></label>
+        <label>{t('Password')}<input autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} type="password" required minLength={12} maxLength={128} value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label>
+        {mode === 'register' && <small>{t('Use at least 12 characters. Passwords are securely hashed on the server.')}</small>}
+        <button className="gate-submit" type="submit" disabled={busy}>{t(busy ? 'Connecting to workspace…' : mode === 'sign-in' ? 'Sign in securely' : 'Create account')}<Icon name="arrow" size={16} /></button>
+        <button className="auth-mode-toggle" type="button" disabled={busy} onClick={() => onModeChange(mode === 'sign-in' ? 'register' : 'sign-in')}>{t(mode === 'sign-in' ? 'New here? Create an account' : 'Already registered? Sign in')}</button>
+      </form>}
+      {(status === 'error' || status === 'unauthorized') && <button className="gate-submit identity-retry" type="button" onClick={onRetry}>{t('Retry identity verification')}<Icon name="arrow" size={16} /></button>}
+      <div className="security-footnote"><span><i />{t('SERVER-VERIFIED IDENTITY')}</span><span>{t('SESSION COOKIE IS HTTP-ONLY')}</span></div>
     </section>
   </main>;
 }
@@ -434,6 +473,10 @@ export function App() {
   const [accessStage, setAccessStage] = useState<AccessStage>('checking');
   const [authAttempt, setAuthAttempt] = useState(0);
   const [authError, setAuthError] = useState('');
+  const [authMode, setAuthMode] = useState<AuthMode>('sign-in');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [activePage, setActivePage] = useState<PageId>('Overview');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -444,6 +487,42 @@ export function App() {
   const [execution, setExecution] = useState('');
   const [toast, setToast] = useState('');
   const handleUnauthorized = useCallback(() => setAccessStage('unauthorized'), []);
+
+  const submitAuthentication = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const response = await fetch(`/api/auth/${authMode === 'sign-in' ? 'login' : 'register'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email: authEmail, password: authPassword }),
+      });
+      if (!response.ok) {
+        const body = await parseIdentityResponse(response);
+        const errorMessage = typeof body === 'object' && body !== null && 'error' in body
+          && typeof body.error === 'string'
+          ? body.error
+          : identityResponseError(response.status).message;
+        throw new Error(errorMessage);
+      }
+
+      const identity = await parseIdentityResponse(response);
+      if (typeof identity !== 'object' || identity === null || !('email' in identity)
+        || typeof identity.email !== 'string' || identity.email.length > 254) {
+        throw new Error('The identity endpoint returned an invalid response.');
+      }
+      setAuthPassword('');
+      setUserEmail(identity.email);
+      setAccessStage('workspace');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Identity verification failed. Please retry.');
+      setAccessStage('unauthorized');
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [authEmail, authMode, authPassword]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -458,7 +537,7 @@ export function App() {
         }
         if (!response.ok) throw identityResponseError(response.status);
 
-        const identity: unknown = await response.json();
+        const identity = await parseIdentityResponse(response);
         if (typeof identity !== 'object' || identity === null || !('email' in identity)
           || typeof identity.email !== 'string' || identity.email.length > 254) {
           throw new Error('The identity endpoint returned an invalid response.');
@@ -583,8 +662,22 @@ export function App() {
     setToast(t('Transaction saved to your secure workspace. No payment was processed.'));
   };
 
-  const signOut = () => {
-    window.location.assign('/cdn-cgi/access/logout');
+  const signOut = async () => {
+    try {
+      const response = await fetch('/api/auth/session', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error(await response.text() || `Sign-out failed (${response.status}).`);
+      setUserEmail('');
+      setAuthPassword('');
+      setAuthMode('sign-in');
+      setAuthError('');
+      setAccessStage('unauthorized');
+    } catch (error) {
+      console.error('Could not sign out securely.', error);
+      setToast(t('Sign-out failed. Please try again.'));
+    }
   };
 
   const syncSocialLead = (channelName: string) => {
@@ -612,6 +705,15 @@ export function App() {
     return <IdentityScreen
       status={accessStage}
       message={authError}
+      mode={authMode}
+      email={authEmail}
+      password={authPassword}
+      busy={authBusy}
+      allowAuth
+      onEmailChange={setAuthEmail}
+      onPasswordChange={setAuthPassword}
+      onModeChange={(mode) => { setAuthMode(mode); setAuthError(''); }}
+      onSubmit={submitAuthentication}
       onRetry={() => { setAuthError(''); setAccessStage('checking'); setAuthAttempt((attempt) => attempt + 1); }}
     />;
   }
@@ -619,6 +721,15 @@ export function App() {
     return <IdentityScreen
       status={workspaceData.status === 'checking' ? 'loading-data' : workspaceData.status}
       message={workspaceData.error}
+      mode={authMode}
+      email={authEmail}
+      password={authPassword}
+      busy={authBusy}
+      allowAuth={false}
+      onEmailChange={setAuthEmail}
+      onPasswordChange={setAuthPassword}
+      onModeChange={setAuthMode}
+      onSubmit={submitAuthentication}
       onRetry={workspaceData.retry}
     />;
   }

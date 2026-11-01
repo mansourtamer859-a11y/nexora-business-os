@@ -12,6 +12,23 @@ type ApiRecord = {
   revision: number;
 };
 
+function expectsJson(response: Response): boolean {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  return contentType.includes('application/json') || contentType.includes('+json');
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  if (!expectsJson(response)) {
+    throw new Error(`Workspace API returned a non-JSON response (HTTP ${response.status}). Verify that the Pages Function route /api/business-data is deployed.`);
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`Workspace API returned invalid JSON (HTTP ${response.status}).`);
+  }
+}
+
 function isApiRecord(value: unknown): value is ApiRecord {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
@@ -21,6 +38,10 @@ function isApiRecord(value: unknown): value is ApiRecord {
 }
 
 async function getErrorMessage(response: Response): Promise<string> {
+  if (!expectsJson(response)) {
+    return `Workspace API returned a non-JSON response (HTTP ${response.status}). Verify that the Pages Function route /api/business-data is deployed.`;
+  }
+
   try {
     const body: unknown = await response.json();
     if (typeof body === 'object' && body !== null && 'error' in body
@@ -110,7 +131,7 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
         }
         if (!response.ok) throw new Error(await getErrorMessage(response));
 
-        const body: unknown = await response.json();
+        const body = await readJsonResponse(response);
         if (!isApiRecord(body)) throw new Error('The workspace API returned invalid data.');
 
         revisionRef.current = body.revision;
@@ -158,7 +179,7 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
           }
           if (!response.ok) throw new Error(await getErrorMessage(response));
 
-          const body: unknown = await response.json();
+          const body = await readJsonResponse(response);
           if (typeof body !== 'object' || body === null || !('revision' in body)
             || !Number.isSafeInteger(body.revision) || (body.revision as number) < 1) {
             throw new Error('The workspace API returned an invalid save confirmation.');

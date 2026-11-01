@@ -1,15 +1,20 @@
-import { verifyAccessRequest } from '../../_lib/access';
+import {
+  deleteSession,
+  getSessionIdentity,
+  requireSameOrigin,
+  unauthorized,
+  type AuthEnvironment,
+} from '../../_lib/session';
 
-type Environment = {
-  CF_ACCESS_TEAM_DOMAIN?: string;
-  CF_ACCESS_AUD?: string;
-};
+export async function onRequestGet({ request, env }: { request: Request; env: AuthEnvironment }): Promise<Response> {
+  const identity = await getSessionIdentity(request, env);
+  if (identity instanceof Response) return identity;
+  if (!identity) return unauthorized();
+  return Response.json({ email: identity.email }, { headers: { 'Cache-Control': 'no-store' } });
+}
 
-export async function onRequestGet({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  const result = await verifyAccessRequest(request, env);
-  if (result.response) return result.response;
-
-  return Response.json({ email: result.identity.email }, {
-    headers: { 'Cache-Control': 'no-store' },
-  });
+export async function onRequestDelete({ request, env }: { request: Request; env: AuthEnvironment }): Promise<Response> {
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
+  return deleteSession(request, env);
 }

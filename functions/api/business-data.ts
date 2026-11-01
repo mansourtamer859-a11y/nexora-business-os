@@ -1,5 +1,5 @@
-import { verifyAccessRequest } from '../_lib/access';
 import { parseWorkspaceData } from '../../src/lib/workspaceData';
+import { getSessionIdentity, unauthorized } from '../_lib/session';
 
 type D1Statement = {
   bind(...values: (string | number)[]): D1Statement;
@@ -12,8 +12,6 @@ type D1Database = {
 };
 
 type Environment = {
-  CF_ACCESS_TEAM_DOMAIN?: string;
-  CF_ACCESS_AUD?: string;
   DB?: D1Database;
 };
 
@@ -38,15 +36,16 @@ function getDatabase(environment: Environment): D1Database | Response {
 }
 
 export async function onRequestGet({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  const auth = await verifyAccessRequest(request, env);
-  if (auth.response) return auth.response;
+  const identity = await getSessionIdentity(request, env);
+  if (identity instanceof Response) return identity;
+  if (!identity) return unauthorized();
   const database = getDatabase(env);
   if (database instanceof Response) return database;
 
   try {
     const record = await database
       .prepare('SELECT payload, revision FROM workspace_state WHERE user_id = ?')
-      .bind(auth.identity.subject)
+      .bind(identity.id)
       .first<StoredWorkspace>();
 
     if (!record) {
@@ -67,8 +66,9 @@ export async function onRequestGet({ request, env }: { request: Request; env: En
 }
 
 export async function onRequestPut({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  const auth = await verifyAccessRequest(request, env);
-  if (auth.response) return auth.response;
+  const identity = await getSessionIdentity(request, env);
+  if (identity instanceof Response) return identity;
+  if (!identity) return unauthorized();
 
   const origin = request.headers.get('Origin');
   if (!origin || origin !== new URL(request.url).origin) {
@@ -116,11 +116,11 @@ export async function onRequestPut({ request, env }: { request: Request; env: En
     const saved = await database.prepare(
       'INSERT INTO workspace_state (user_id, payload, revision, updated_at) SELECT ?, ?, 1, ? WHERE ? = 0 OR EXISTS (SELECT 1 FROM workspace_state WHERE user_id = ? AND revision = ?) ON CONFLICT(user_id) DO UPDATE SET payload = excluded.payload, revision = workspace_state.revision + 1, updated_at = excluded.updated_at WHERE workspace_state.revision = ? RETURNING revision',
     ).bind(
-      auth.identity.subject,
+      identity.id,
       JSON.stringify(data),
       Date.now(),
       update.revision as number,
-      auth.identity.subject,
+      identity.id,
       update.revision as number,
       update.revision as number,
     )

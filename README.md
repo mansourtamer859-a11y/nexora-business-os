@@ -28,9 +28,9 @@ Build with `npm run build`; the Pages output directory is `dist`. The app uses C
 
 Before deployment:
 
-1. Configure a Cloudflare Access self-hosted application for the Pages hostname, protect the entire hostname (including `/api/*`), configure the chosen OIDC identity provider, and limit access with an explicit identity policy.
-2. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `wrangler.toml` for manual deployment. GitHub Actions substitutes the repository variables of those names into a temporary config; do not commit real account-specific Access values unless that is intentional.
-3. The checked-in `[[d1_databases]]` binding uses database name `nexora-db` and the configured D1 UUID. Confirm that this UUID belongs to the target Cloudflare account before deployment. Apply `migrations/0001_workspace_state.sql` with `npx wrangler d1 migrations apply nexora-db --remote`.
+1. Configure HTTPS for the Pages hostname. Authentication cookies require HTTPS.
+2. The checked-in `[[d1_databases]]` binding uses database name `nexora-db` and the configured D1 UUID. Confirm that this UUID belongs to the target Cloudflare account before deployment.
+3. Apply the checked-in migrations with `npx wrangler d1 migrations apply nexora-db --remote`.
 4. Deploy with `npx wrangler pages deploy dist --project-name nexus-business-erp-saas-os` or configure the Pages Git integration to use `npm run build` and `dist`.
 
 Do not replace the D1 UUID with an all-zero or placeholder value. Do not put secrets in Vite `VITE_*` variables.
@@ -40,11 +40,11 @@ Do not replace the D1 UUID with an all-zero or placeholder value. Do not put sec
 The workflow at `.github/workflows/pages-deploy.yml` validates, builds, applies D1 migrations, then deploys the Pages assets and Functions on pushes to `main` or a manual dispatch. Before enabling it, add these repository settings:
 
 - **Actions secrets:** `CLOUDFLARE_API_TOKEN` (scoped to Pages edit and D1 edit) and `CLOUDFLARE_ACCOUNT_ID`.
-- **Actions variables:** `CF_ACCESS_TEAM_DOMAIN` (the hostname only, such as `example.cloudflareaccess.com`) and `CF_ACCESS_AUD` (the Access application audience).
+- **Actions variables:** none required for this deployment workflow.
 
-The workflow validates the checked-in D1 binding, generates a temporary Wrangler config from the Access variables, applies pending D1 migrations, and deploys Pages. The temporary config is not committed or printed. A successful Git push or manual workflow dispatch is still required; Actions cannot bypass missing GitHub or Cloudflare credentials. Cloudflare plan limits and D1 usage determine costs; neither zero cost nor customer provisioning is guaranteed.
+The workflow validates the checked-in D1 binding, applies pending D1 migrations, and deploys Pages. A successful Git push or manual workflow dispatch is still required; Actions cannot bypass missing GitHub or Cloudflare credentials. Cloudflare plan limits and D1 usage determine costs; neither zero cost nor customer provisioning is guaranteed.
 
-The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise the API. Until Access and D1 are configured, the app fails closed and does not expose a demo sign-in fallback.
+The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise authentication and the workspace API. The app fails closed when the session endpoint or D1 is unavailable.
 
 The client is rendered with React `createRoot` (not server-rendered/hydrated). The dashboard uses browser-supported `content-visibility` for off-screen panels, and initial workspace reads retry transient serverless/network failures up to three attempts before showing a retryable error state. These measures reduce unnecessary rendering and soften cold starts; they do not guarantee a 60 fps frame rate on every device. React error boundaries catch render/lifecycle errors, not network or serverless exceptions; API errors are handled by the data hook and surfaced in the UI.
 
@@ -71,14 +71,14 @@ Use **⌘ K** (or **Ctrl K**) to search and switch modules. The theme control in
 
 ## Identity, authorization, and workspace data
 
-- The client-side `#117007` passkey, simulated email/password login, fake Google OAuth button, and remembered-demo-session bypass have been removed.
-- Cloudflare Access is the identity provider boundary. The app calls `/api/auth/session`; the Pages Function verifies the `Cf-Access-Jwt-Assertion` signature using the Access JWKS and checks issuer, audience, subject, email, and time claims. No app code stores or accepts a client-provided session token.
-- `/api/business-data` independently verifies Access identity on each read and write. It accepts same-origin JSON writes only, enforces a payload limit and strict schema, uses prepared D1 statements, scopes records to the verified Access subject, disables caching, and applies a revision check to prevent silent overwrites from concurrent sessions.
-- CRM deals, finance invoice rows, and inventory counts load from and save to D1. They are no longer stored in browser localStorage; old demo storage keys are removed when the app starts. A new identity starts with empty records. D1 data remains per Access subject in this initial schema; tenant memberships, roles, shared workspaces, and audit history are not yet modeled.
-- All protected Pages routes must also be covered by a Cloudflare Access application and restrictive policy. API JWT validation is defense in depth, not a substitute for configuring Access on the hostname. Keep the Access team and audience values, and the D1 database ID, correctly configured per deployment.
+- Native email/password registration and sign-in use `/api/auth/register` and `/api/auth/login`. Passwords are salted and hashed server-side with PBKDF2-SHA-256; plaintext passwords are never stored. Authentication attempts are rate-limited per Cloudflare-provided client IP.
+- `/api/auth/session` validates an opaque random session cookie against its SHA-256 hash in D1. The cookie is Secure, HttpOnly, SameSite=Lax, and expires after seven days. `/api/auth/session` DELETE revokes the stored session. There is no client-side authentication flag or hardcoded global passcode.
+- `/api/business-data` requires a valid server-side session for each read and write. It accepts same-origin JSON writes only, enforces payload limits and schema validation, uses prepared D1 statements, scopes records to the authenticated user, disables caching, and applies a revision check to prevent silent overwrites.
+- CRM deals, finance invoice rows, and inventory counts load from and save to D1. D1 data is per account; tenant memberships, roles, shared workspaces, email verification, password recovery, and audit history are not yet modeled.
+- Google OAuth is not implemented/configured. A production OAuth flow requires provider credentials, callback configuration, verified ID tokens, and an account-linking policy. Do not present a simulated provider button as authentication.
 
 The microphone requests browser permission, captures audio for local level metering, and uses the browser's Web Speech recognition implementation to match only approved phrases. It is not a streaming AI provider integration; speech recognition behavior and possible vendor processing depend on the browser. Assistant actions, HR records, analytics charts, invoice file scanning, forecasts, and social channel activity remain demo behavior. Do not interpret simulated totals, channel status, or assistant output as authoritative business data. The invoice archiver only inspects file metadata and does not upload or parse document contents.
 
-`npm run typecheck` checks both the React app and the Pages Functions. Production deployment still requires configured Cloudflare Access/OIDC, a real D1 database binding, an applied migration, TLS, tenant authorization requirements, and environment-level validation. No source-only implementation can verify a live Cloudflare account or provider configuration.
+`npm run typecheck` checks both the React app and the Pages Functions. Production deployment still requires a real D1 database binding, applied migrations, HTTPS, account lifecycle controls (including email verification and password recovery), tenant authorization requirements, and environment-level validation. No source-only implementation can verify a live Cloudflare account or database configuration.
 
 For the engineering milestone history, validation evidence, and security boundary assessment, see [PROJECT_AUDIT.md](./PROJECT_AUDIT.md).

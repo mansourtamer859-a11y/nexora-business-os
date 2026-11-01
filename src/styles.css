@@ -597,6 +597,15 @@ td:first-child { color: var(--text); font-weight: 500; }
 .security-emblem > i { position: absolute; right: 2px; bottom: 1px; width: 8px; height: 8px; background: #a9dc92; border: 2px solid #111411; border-radius: 50%; }
 .security-overline { margin: 0 0 8px; color: #99b28e; font-size: 8px; font-weight: 600; letter-spacing: 1.25px; text-align: center; }
 .security-description { max-width: 355px; margin: 9px auto 24px; color: #858a86; font-size: 11px; line-height: 1.7; text-align: center; }
+.native-auth-form { display: grid; gap: 12px; }
+.native-auth-form label { display: grid; gap: 6px; color: #b7bdb8; font-size: 10px; }
+.native-auth-form input { width: 100%; height: 41px; padding: 0 11px; color: #f4f5f7; background: rgba(255, 255, 255, .035); border: 1px solid rgba(255, 255, 255, .11); border-radius: 7px; outline: none; }
+.native-auth-form input:focus { border-color: rgba(180, 230, 156, .7); box-shadow: 0 0 0 3px rgba(180, 230, 156, .09); }
+.native-auth-form small { color: #858a86; font-size: 9px; line-height: 1.5; }
+.native-auth-form .gate-submit { margin-top: 3px; cursor: pointer; }
+.native-auth-form .gate-submit:disabled, .native-auth-form .auth-mode-toggle:disabled { cursor: wait; opacity: .65; }
+.auth-mode-toggle { padding: 4px; color: #b6d2a9; font-size: 10px; background: none; border: 0; cursor: pointer; }
+.identity-retry { margin-top: 12px; color: #d6ddd5; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .11); cursor: pointer; }
 .gate-submit { display: flex; width: 100%; height: 43px; align-items: center; justify-content: center; gap: 9px; color: #172014; font-size: 10px; font-weight: 700; background: #b4e69c; border: 0; border-radius: 7px; transition: background .18s, transform .18s; }
 .gate-submit:hover:not(:disabled) { transform: translateY(-1px); background: #c8f1b3; }
 .security-footnote { display: flex; justify-content: space-between; gap: 8px; margin-top: 25px; padding-top: 14px; color: #616963; font-size: 7px; letter-spacing: .65px; border-top: 1px solid rgba(255, 255, 255, .07); }
