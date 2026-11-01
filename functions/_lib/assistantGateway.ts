@@ -6,16 +6,20 @@ import {
 } from './session';
 import { requireAccessGate } from './accessGate';
 import {
+  createEncryptedAssistantInput,
+  encryptAuditPayload,
   generateAssistantResponse,
-  MissingAudioModelError,
   ProviderRequestError,
   UnsupportedProviderInputError,
+  validateAuditEncryptionKey,
   type AIProviderEnvironment,
   type NormalizedAssistantInput,
 } from './aiProviders';
 import { parseWorkspaceData } from '../../src/lib/workspaceData';
 
-type AssistantEnvironment = AuthEnvironment & AIProviderEnvironment;
+type AssistantEnvironment = AuthEnvironment & AIProviderEnvironment & {
+  AI_LOG_ENCRYPTION_KEY?: string;
+};
 
 const maxRequestBytes = 1_500_000;
 const maxTextLength = 100_000;
@@ -132,6 +136,15 @@ export async function handleAssistantRequest(request: Request, environment: Assi
   const identity = await getSessionIdentity(request, environment);
   if (identity instanceof Response) return identity;
   if (!identity) return unauthorized();
+  if (!identity.sessionId) {
+    console.error('Authenticated session did not include its server-side identifier.');
+    return jsonResponse(503, { error: 'Conversation logging is temporarily unavailable.' });
+  }
+  const encryptionKey = validateAuditEncryptionKey(environment.AI_LOG_ENCRYPTION_KEY);
+  if (!encryptionKey) {
+    console.error('AI_LOG_ENCRYPTION_KEY is missing or invalid.');
+    return jsonResponse(503, { error: 'Secure conversation history is not configured for this deployment.' });
+  }
 
   const input = await readAssistantInput(request);
   if (input instanceof Response) return input;
@@ -162,14 +175,36 @@ export async function handleAssistantRequest(request: Request, environment: Assi
 
   const systemText = `The authenticated user's current workspace aggregate summary is: ${workspaceSummary}. It contains counts only; do not infer individual records or financial values. Clearly state when information is not present in the supplied content or summary.`;
   try {
+    const loggedInput = await createEncryptedAssistantInput(input);
     const result = await generateAssistantResponse(input, environment, systemText);
-    return jsonResponse(200, result);
+    const inputPayload = await encryptAuditPayload(loggedInput, encryptionKey);
+    const outputPayload = await encryptAuditPayload({ text: result.text }, encryptionKey);
+    const conversationId = crypto.randomUUID();
+    const createdAt = Date.now();
+    try {
+      await environment.DB.prepare(
+        'INSERT INTO ai_conversation_logs (id, user_id, session_id, active_provider, model_name, input_payload, output_payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      ).bind(
+        conversationId,
+        identity.id,
+        identity.sessionId,
+        result.provider,
+        result.model,
+        inputPayload,
+        outputPayload,
+        createdAt,
+      ).run();
+      await environment.DB.prepare(
+        'DELETE FROM ai_conversation_logs WHERE user_id = ? AND id NOT IN (SELECT id FROM ai_conversation_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT 100)',
+      ).bind(identity.id, identity.id).run();
+    } catch (error) {
+      console.error('Could not persist the encrypted assistant conversation.', error);
+      return jsonResponse(503, { error: 'The assistant response could not be archived. Please retry.' });
+    }
+    return jsonResponse(200, { ...result, conversationId });
   } catch (error) {
     if (error instanceof UnsupportedProviderInputError) {
       return jsonResponse(415, { error: error.message });
-    }
-    if (error instanceof MissingAudioModelError) {
-      return jsonResponse(503, { error: 'Audio transcription is not configured for this deployment.' });
     }
     if (error instanceof ProviderRequestError) {
       if (error.status === 429) {

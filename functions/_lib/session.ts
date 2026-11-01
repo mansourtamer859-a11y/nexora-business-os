@@ -1,11 +1,13 @@
 export type AuthIdentity = {
   id: string;
   email: string;
+  sessionId?: string;
 };
 
 export type D1Statement = {
   bind(...values: (string | number)[]): D1Statement;
   first<T>(): Promise<T | null>;
+  all?<T>(): Promise<{ results: T[] }>;
   run(): Promise<unknown>;
 };
 
@@ -389,9 +391,9 @@ export async function getSessionIdentity(
   try {
     const tokenHash = bytesToBase64Url(await sha256(token));
     const identity = await database.prepare(
-      'SELECT auth_users.id, auth_users.email FROM auth_sessions JOIN auth_users ON auth_users.id = auth_sessions.user_id WHERE auth_sessions.token_hash = ? AND auth_sessions.expires_at > ?',
-    ).bind(tokenHash, Date.now()).first<SessionRecord>();
-    return identity ? { id: identity.id, email: identity.email } : null;
+      'SELECT auth_users.id, auth_users.email, auth_sessions.token_hash AS session_id FROM auth_sessions JOIN auth_users ON auth_users.id = auth_sessions.user_id WHERE auth_sessions.token_hash = ? AND auth_sessions.expires_at > ?',
+    ).bind(tokenHash, Date.now()).first<SessionRecord & { session_id: string }>();
+    return identity ? { id: identity.id, email: identity.email, sessionId: identity.session_id } : null;
   } catch (error) {
     console.error('Could not verify the session record.', error);
     return jsonError(503, 'Session verification is temporarily unavailable.');
