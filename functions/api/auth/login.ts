@@ -10,8 +10,11 @@ import {
   verifyPassword,
   type AuthEnvironment,
 } from '../../_lib/session';
+import { requireAccessGate } from '../../_lib/accessGate';
 
 export async function onRequestPost({ request, env }: { request: Request; env: AuthEnvironment }): Promise<Response> {
+  const gateError = await requireAccessGate(request, env);
+  if (gateError) return gateError;
   const originError = requireSameOrigin(request);
   if (originError) return originError;
   const input = await readJsonObject(request);

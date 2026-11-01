@@ -124,9 +124,9 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
     const load = async () => {
       try {
         const response = await fetchWorkspace(controller.signal);
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
           onUnauthorized();
-          setStatus('unauthorized');
+          setStatus(response.status === 401 ? 'unauthorized' : 'checking');
           return;
         }
         if (!response.ok) throw new Error(await getErrorMessage(response));
@@ -172,9 +172,9 @@ export function useWorkspaceData(enabled: boolean, onUnauthorized: () => void) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: snapshot, revision: revisionRef.current }),
           });
-          if (response.status === 401) {
+          if (response.status === 401 || response.status === 403) {
             onUnauthorized();
-            setStatus('unauthorized');
+            setStatus(response.status === 401 ? 'unauthorized' : 'checking');
             return;
           }
           if (!response.ok) throw new Error(await getErrorMessage(response));

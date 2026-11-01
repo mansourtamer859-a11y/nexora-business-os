@@ -1,4 +1,5 @@
 import { parseWorkspaceData } from '../../src/lib/workspaceData';
+import { requireAccessGate } from '../_lib/accessGate';
 import { getSessionIdentity, unauthorized } from '../_lib/session';
 
 type D1Statement = {
@@ -36,6 +37,8 @@ function getDatabase(environment: Environment): D1Database | Response {
 }
 
 export async function onRequestGet({ request, env }: { request: Request; env: Environment }): Promise<Response> {
+  const gateError = await requireAccessGate(request, env);
+  if (gateError) return gateError;
   const identity = await getSessionIdentity(request, env);
   if (identity instanceof Response) return identity;
   if (!identity) return unauthorized();
@@ -66,6 +69,8 @@ export async function onRequestGet({ request, env }: { request: Request; env: En
 }
 
 export async function onRequestPut({ request, env }: { request: Request; env: Environment }): Promise<Response> {
+  const gateError = await requireAccessGate(request, env);
+  if (gateError) return gateError;
   const identity = await getSessionIdentity(request, env);
   if (identity instanceof Response) return identity;
   if (!identity) return unauthorized();

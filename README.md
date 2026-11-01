@@ -46,6 +46,10 @@ The workflow validates the checked-in D1 binding, applies pending D1 migrations,
 
 For Google sign-in, configure `GOOGLE_CLIENT_ID` as a Pages Function environment variable and `GOOGLE_CLIENT_SECRET` as a Pages Function secret. Register `https://<your-pages-hostname>/api/auth/google/callback` as an authorized Google OAuth redirect URI. Google sign-in remains unavailable until those provider settings are configured.
 
+For the optional shared access gate, configure `NEXORA_GATE_PASSCODE` and `NEXORA_GATE_SIGNING_KEY` as Cloudflare Pages Function secrets. Set the passcode out of band to the value your administrators selected; it is never embedded in the Vite bundle. The signing key must be at least 32 characters of cryptographically random data. The gate grants a 12-hour signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie; D1-backed IP rate limiting applies to passcode attempts. The gate is defense in depth, not a replacement for native user authentication. Its secrets are required for auth, workspace, and assistant routes; if they are unset, those routes fail closed. For local Pages-runtime testing, supply both secrets through the runtime's local secret facility, not committed files.
+
+For the authenticated AI gateway, configure `GEMINI_API_KEY` as a Cloudflare Pages Function secret; never add it to `VITE_*`, `.env.example`, or committed files. Optionally set `GEMINI_MODELS` to a comma-separated subset of `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash`. Model fallback is used only when a configured model is unavailable or the upstream service fails; HTTP 429 responses are returned to the user rather than bypassed with another model or key. Provider quotas and terms still apply. The gateway requires a native authenticated session, reads only the signed-in user's workspace record, and sends aggregate CRM/invoice/inventory counts—not individual records—to Gemini as context. Submitted prompts and attached files are sent to Google after the user submits. PDF, CSV, Markdown, plain text, and supported audio uploads are limited to 1 MB; spreadsheet binary formats are not parsed.
+
 The standard Vite `npm run dev` server does not run Pages Functions. Use a Cloudflare Pages-compatible local runtime with local D1 migrations to exercise authentication and the workspace API. The app fails closed when the session endpoint or D1 is unavailable.
 
 The client is rendered with React `createRoot` (not server-rendered/hydrated). The dashboard uses browser-supported `content-visibility` for off-screen panels, and initial workspace reads retry transient serverless/network failures up to three attempts before showing a retryable error state. These measures reduce unnecessary rendering and soften cold starts; they do not guarantee a 60 fps frame rate on every device. React error boundaries catch render/lifecycle errors, not network or serverless exceptions; API errors are handled by the data hook and surfaced in the UI.
@@ -59,7 +63,7 @@ The runtime bundle is limited to React and React DOM; unused Supabase and router
 ## Workspace modules
 
 - **Overview** — Revenue metrics, business activity, sales pipeline, and AI assistant.
-- **AI assistant** — Allow-listed demo voice prompts and status updates; there is no configured LLM provider or quota-bypass/key-pool mechanism.
+- **AI assistant** — Allow-listed demo voice actions plus an authenticated Gemini text/document/audio gateway. The browser's speech synthesis can read answers aloud. Provider setup is required, and provider limits are respected; no key pool or quota bypass is used.
 - **Finance** — Cash flow, recurring revenue, expense distribution, and invoice status.
 - **Sales & CRM** — Drag-and-drop sales stages with keyboard/touch-friendly move controls.
 - **People** — Employee directory, payroll metrics, and team schedule.

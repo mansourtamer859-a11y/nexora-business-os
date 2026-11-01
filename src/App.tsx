@@ -3,6 +3,7 @@ import { IntegrationHub } from './components/IntegrationHub';
 import { ForecastPanel } from './components/ForecastPanel';
 import { InvoiceArchiver } from './components/InvoiceArchiver';
 import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
+import { AssistantGateway } from './components/AssistantGateway';
 import { useLocale } from './i18n/useLocale';
 import { useAntiHallucination, resolveSpokenCommand, resolveTrustedAssistantRequest } from './hooks/useAntiHallucination';
 import { useSpeechCapture } from './hooks/useSpeechCapture';
@@ -13,7 +14,7 @@ import type { Deal, DealStage, Invoice } from './lib/workspaceData';
 type PageId = 'Overview' | 'AI assistant' | 'Finance' | 'Sales & CRM' | 'People' | 'Inventory' | 'Analytics' | 'Integrations';
 type IconName = 'grid' | 'spark' | 'wallet' | 'users' | 'briefcase' | 'boxes' | 'chart' | 'search' | 'bell' | 'chevron' | 'arrow' | 'mic' | 'play' | 'clock' | 'check' | 'plus' | 'more' | 'sun' | 'moon' | 'command' | 'trend' | 'close' | 'share';
 type Workflow = { id: number; title: string; state: 'running' | 'complete'; time: string };
-type AccessStage = 'checking' | 'unauthorized' | 'error' | 'workspace';
+type AccessStage = 'gate-checking' | 'gate-required' | 'checking' | 'unauthorized' | 'error' | 'workspace';
 type AuthMode = 'sign-in' | 'register';
 
 function waitForIdentityRetry(delayMs: number, signal: AbortSignal): Promise<void> {
@@ -189,6 +190,44 @@ function Metric({ label, value, delta, icon, tone = 'mint' }: { label: string; v
   }, []);
 
   return <article className="metric-card"><div className="metric-top"><span>{t(label)}</span><span className={`metric-icon ${tone}`}><Icon name={icon} size={17} /></span></div><div className="metric-value">{value}</div><div className="metric-sparkline" aria-hidden="true"><svg viewBox="0 0 110 70" preserveAspectRatio="none"><polyline points={line} /></svg></div><div className="metric-foot"><span className="trend"><Icon name="trend" size={13} />{t(delta)}</span><span>{t('vs last month')}</span></div></article>;
+}
+
+function AccessGateScreen({
+  passcode,
+  error,
+  busy,
+  checking,
+  onPasscodeChange,
+  onSubmit,
+  onRetry,
+}: {
+  passcode: string;
+  error: string;
+  busy: boolean;
+  checking: boolean;
+  onPasscodeChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onRetry: () => void;
+}) {
+  const { t, direction, locale } = useLocale();
+  return <main className="security-screen identity-screen" lang={locale} dir={direction}>
+    <div className="security-grain" />
+    <div className="security-orb" />
+    <section className="security-card identity-card">
+      <div className="security-brand"><span className="security-mark"><i /><i /><i /><i /></span><span>NEXORA<span>BUSINESS OS</span></span></div>
+      <div className="security-emblem"><span /><Icon name="command" size={22} /><i /></div>
+      <p className="security-overline">{t('NEXORA SECURE ACCESS')}</p>
+      <h1>{t(checking ? 'Verifying web access…' : 'Secure access required')}</h1>
+      <p className="security-description">{t('Enter the access passcode to continue to sign in.')}</p>
+      {error && <p className="session-notice" role="alert">{t(error)}</p>}
+      {!checking && <form className="native-auth-form" onSubmit={onSubmit}>
+        <label>{t('Access passcode')}<input autoComplete="one-time-code" type="password" required maxLength={256} value={passcode} onChange={(event) => onPasscodeChange(event.target.value)} /></label>
+        <button className="gate-submit" type="submit" disabled={busy}>{t(busy ? 'Checking access…' : 'Continue securely')}<Icon name="arrow" size={16} /></button>
+      </form>}
+      {checking && <button className="gate-submit identity-retry" type="button" onClick={onRetry}>{t('Retry access verification')}<Icon name="arrow" size={16} /></button>}
+      <div className="security-footnote"><span><i />{t('SERVER-VERIFIED ACCESS')}</span><span>{t('HTTP-ONLY ACCESS COOKIE')}</span></div>
+    </section>
+  </main>;
 }
 
 function IdentityScreen({
@@ -543,7 +582,7 @@ function Activity({ icon, title, detail, time }: { icon: IconName; title: string
 
 function AssistantPage({ onRun, execution }: { onRun: (prompt: string) => void; execution: string }) {
   const { t, locale, direction } = useLocale();
-  return <><PageHeading page="AI assistant" description="A capable partner for the questions and work that move your business forward." /><div className="assistant-layout"><VoiceAssistant onRun={onRun} page="AI assistant" /><Panel className="execution-panel"><PanelTitle title="Execution stream" subtitle="Activity from this local demo" action={<span className="live-badge"><i />{t('DEMO')}</span>} /><div className="execution-list"><Activity icon="check" title="Local demo context loaded" detail="Sample Finance, CRM, People & inventory data" time="now" /><Activity icon="spark" title={execution || 'Ready when you are'} detail={execution ? 'Demo action completed' : 'Try an approved demo prompt'} time={execution ? 'just now' : '—'} /><Activity icon="clock" title="External data connection" detail="No backend or external service is connected" time="offline" /></div><div className="assistant-suggestions" lang={locale} dir={direction}><h3>{t('Quick actions')} · {t('AI assistant')}</h3>{assistantPrompts['AI assistant'].map((prompt) => <button key={prompt.label} onClick={() => onRun(prompt.action)}>{t(prompt.label)}<Icon name="arrow" size={14} /></button>)}</div></Panel></div></>;
+  return <><PageHeading page="AI assistant" description="A capable partner for the questions and work that move your business forward." /><div className="assistant-layout"><VoiceAssistant onRun={onRun} page="AI assistant" /><Panel className="execution-panel"><PanelTitle title="Execution stream" subtitle="Activity from this local demo" action={<span className="live-badge"><i />{t('DEMO')}</span>} /><div className="execution-list"><Activity icon="check" title="Local demo context loaded" detail="Sample Finance, CRM, People & inventory data" time="now" /><Activity icon="spark" title={execution || 'Ready when you are'} detail={execution ? 'Demo action completed' : 'Try an approved demo prompt'} time={execution ? 'just now' : '—'} /><Activity icon="clock" title="Secure AI gateway" detail="Provider calls require a verified session" time="on demand" /></div><AssistantGateway /><div className="assistant-suggestions" lang={locale} dir={direction}><h3>{t('Quick actions')} · {t('AI assistant')}</h3>{assistantPrompts['AI assistant'].map((prompt) => <button key={prompt.label} onClick={() => onRun(prompt.action)}>{t(prompt.label)}<Icon name="arrow" size={14} /></button>)}</div></Panel></div></>;
 }
 
 function FinanceContent({ invoices, onAddTransaction }: { invoices: Invoice[]; onAddTransaction: () => void }) {
@@ -617,7 +656,11 @@ function AnalyticsPage({ inventoryOnHand }: { inventoryOnHand: number }) {
 
 export function App() {
   const { locale, direction, setLocale, t } = useLocale();
-  const [accessStage, setAccessStage] = useState<AccessStage>('checking');
+  const [accessStage, setAccessStage] = useState<AccessStage>('gate-checking');
+  const [gatePasscode, setGatePasscode] = useState('');
+  const [gateError, setGateError] = useState('');
+  const [gateBusy, setGateBusy] = useState(false);
+  const [gateAttempt, setGateAttempt] = useState(0);
   const [authAttempt, setAuthAttempt] = useState(0);
   const [authError, setAuthError] = useState(() => {
     const reason = new URLSearchParams(window.location.search).get('auth_error');
@@ -648,7 +691,73 @@ export function App() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [execution, setExecution] = useState('');
   const [toast, setToast] = useState('');
-  const handleUnauthorized = useCallback(() => setAccessStage('unauthorized'), []);
+  const handleUnauthorized = useCallback(() => {
+    setGateError('');
+    setAccessStage('gate-checking');
+    setGateAttempt((attempt) => attempt + 1);
+  }, []);
+
+  const submitAccessGate = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setGateBusy(true);
+    setGateError('');
+    try {
+      const response = await fetch('/api/auth/gate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: gatePasscode }),
+      });
+      const body = await parseIdentityResponse(response);
+      if (!response.ok) {
+        const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
+          ? body.error
+          : identityResponseError(response.status).message;
+        throw new Error(message);
+      }
+      if (typeof body !== 'object' || body === null || !('verified' in body) || body.verified !== true) {
+        throw new Error('The access gate returned an invalid response.');
+      }
+      setGatePasscode('');
+      setAccessStage('checking');
+    } catch (error) {
+      setGateError(error instanceof Error ? error.message : 'Access gate verification failed. Please retry.');
+    } finally {
+      setGateBusy(false);
+    }
+  }, [gatePasscode]);
+
+  useEffect(() => {
+    if (accessStage !== 'gate-checking') return undefined;
+    const controller = new AbortController();
+    const checkGate = async () => {
+      try {
+        const response = await fetch('/api/auth/gate', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (response.status === 401) {
+          setAccessStage('gate-required');
+          return;
+        }
+        if (!response.ok) throw identityResponseError(response.status);
+        const result = await parseIdentityResponse(response);
+        if (typeof result !== 'object' || result === null || !('verified' in result) || result.verified !== true) {
+          throw new Error('The access gate returned an invalid response.');
+        }
+        setAccessStage('checking');
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setGateError(error instanceof Error ? error.message : 'Access gate verification failed. Please retry.');
+          setAccessStage('gate-required');
+        }
+      }
+    };
+    void checkGate();
+    return () => controller.abort();
+  }, [accessStage, gateAttempt]);
 
   const submitAuthentication = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -687,6 +796,7 @@ export function App() {
   }, [authEmail, authMode, authPassword]);
 
   useEffect(() => {
+    if (accessStage !== 'checking') return undefined;
     const controller = new AbortController();
 
     const verifyIdentity = async () => {
@@ -695,6 +805,11 @@ export function App() {
         if (controller.signal.aborted) return;
         if (response.status === 401) {
           setAccessStage('unauthorized');
+          return;
+        }
+        if (response.status === 403) {
+          setGateError('');
+          setAccessStage('gate-checking');
           return;
         }
         if (!response.ok) throw identityResponseError(response.status);
@@ -716,7 +831,7 @@ export function App() {
 
     void verifyIdentity();
     return () => controller.abort();
-  }, [authAttempt]);
+  }, [accessStage, authAttempt]);
 
   const workspaceData = useWorkspaceData(accessStage === 'workspace', handleUnauthorized);
   const { data, setDeals, setInventoryOnHand: setStock, setInvoices } = workspaceData;
@@ -873,6 +988,18 @@ export function App() {
     `${item.label} ${t(item.label)}`.toLowerCase().includes(search.toLowerCase()),
   );
 
+  if (accessStage === 'gate-checking' || accessStage === 'gate-required') {
+    return <AccessGateScreen
+      passcode={gatePasscode}
+      error={gateError}
+      busy={gateBusy}
+      checking={accessStage === 'gate-checking'}
+      onPasscodeChange={(value) => { setGatePasscode(value); setGateError(''); }}
+      onSubmit={submitAccessGate}
+      onRetry={() => { setGateError(''); setAccessStage('gate-checking'); setGateAttempt((attempt) => attempt + 1); }}
+    />;
+  }
+
   if (accessStage !== 'workspace') {
     return <IdentityScreen
       status={accessStage}
@@ -905,7 +1032,6 @@ export function App() {
       onRetry={workspaceData.retry}
     />;
   }
-
   return <div className="app-shell" data-theme={theme} dir={direction} lang={locale}>
     <aside className="sidebar">
       <div>

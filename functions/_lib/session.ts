@@ -15,6 +15,8 @@ export type D1Database = {
 
 export type AuthEnvironment = {
   DB?: D1Database;
+  NEXORA_GATE_PASSCODE?: string;
+  NEXORA_GATE_SIGNING_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
 };

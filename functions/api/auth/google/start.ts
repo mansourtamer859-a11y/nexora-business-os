@@ -3,6 +3,7 @@ import {
   getDatabase,
   type AuthEnvironment,
 } from '../../../_lib/session';
+import { requireAccessGate } from '../../../_lib/accessGate';
 
 const encodeBase64Url = (bytes: Uint8Array): string => {
   let binary = '';
@@ -23,6 +24,8 @@ function failureRedirect(request: Request, reason: string): Response {
 }
 
 export async function onRequestGet({ request, env }: { request: Request; env: AuthEnvironment }): Promise<Response> {
+  const gateError = await requireAccessGate(request, env);
+  if (gateError) return gateError;
   if (!env.GOOGLE_CLIENT_ID) return failureRedirect(request, 'google_not_configured');
   const database = getDatabase(env);
   if (database instanceof Response) return failureRedirect(request, 'service_unavailable');

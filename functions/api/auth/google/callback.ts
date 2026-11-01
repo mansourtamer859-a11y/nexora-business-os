@@ -6,6 +6,7 @@ import {
   verifyGoogleIdToken,
   type AuthEnvironment,
 } from '../../../_lib/session';
+import { requireAccessGate } from '../../../_lib/accessGate';
 
 function failureRedirect(request: Request, reason: string): Response {
   const destination = new URL('/', request.url);
@@ -24,6 +25,8 @@ function redirectWithCookie(request: Request, cookie: string): Response {
 }
 
 export async function onRequestGet({ request, env }: { request: Request; env: AuthEnvironment }): Promise<Response> {
+  const gateError = await requireAccessGate(request, env);
+  if (gateError) return gateError;
   const parameters = new URL(request.url).searchParams;
   const code = parameters.get('code');
   const state = parameters.get('state');
