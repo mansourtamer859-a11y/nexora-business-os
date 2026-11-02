@@ -14,10 +14,11 @@ export async function onRequestGet({ request, env }: { request: Request; env: an
 
 export async function onRequestPost({ request, env }: { request: Request; env: any }): Promise<Response> {
   try {
-    // التحقق الآمن والمباشر باستخدام الدالة المستقرة التي قمنا بإصلاحها وتأمينها
-    const hasAccess = await hasAccessGate(request, env);
+    // قراءة البيانات المرسلة من فورم تسجيل الدخول بالمتصفح
+    const input = await request.json() as { passcode?: string };
     
-    if (hasAccess) {
+    // مطابقة مباشرة بين الرمز المدخل والرمز السري المخزن في wrangler.toml
+    if (input && input.passcode === env.NEXORA_GATE_PASSCODE) {
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { 
@@ -33,7 +34,7 @@ export async function onRequestPost({ request, env }: { request: Request; env: a
     });
     
   } catch (error) {
-    return new Response(JSON.stringify({ error: "بوابة الوصول واجهت خطأ داخلي غير متوقع" }), {
+    return new Response(JSON.stringify({ error: "بوابة الوصول واجهت خطأ داخلي" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
