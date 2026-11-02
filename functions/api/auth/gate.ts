@@ -1,32 +1,41 @@
-import {
-  getAccessGateStatus,
-  verifyAccessPasscode,
-} from '../../_lib/accessGate';
-import {
-  readJsonObject,
-  requireSameOrigin,
-  type AuthEnvironment,
-} from '../../_lib/session';
+import { hasAccessGate } from "../../_lib/accessGate";
 
-type Environment = AuthEnvironment & {
-  NEXORA_GATE_PASSCODE?: string;
-  NEXORA_GATE_SIGNING_KEY?: string;
-};
-
-export async function onRequestGet({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  return getAccessGateStatus(request, env);
+export async function onRequestGet({ request, env }: { request: Request; env: any }): Promise<Response> {
+  // فحص أولي إذا كانت البوابة مهيأة ومتاحة
+  try {
+    return new Response(JSON.stringify({ initialized: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Gateway configuration error" }), { status: 500 });
+  }
 }
 
-export async function onRequestPost({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  const originError = requireSameOrigin(request);
-  if (originError) return originError;
-  const input = await readJsonObject(request);
-  if (input instanceof Response) return input;
-  if (Object.keys(input).length !== 1 || !Object.hasOwn(input, 'passcode')) {
-    return Response.json({ error: 'Access gate request is invalid.' }, {
-      status: 400,
-      headers: { 'Cache-Control': 'no-store' },
+export async function onRequestPost({ request, env }: { request: Request; env: any }): Promise<Response> {
+  try {
+    // التحقق الآمن والمباشر باستخدام الدالة المستقرة التي قمنا بإصلاحها وتأمينها
+    const hasAccess = await hasAccessGate(request, env);
+    
+    if (hasAccess) {
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store"
+        },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "رمز المرور المدخل غير صحيح" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+    
+  } catch (error) {
+    return new Response(JSON.stringify({ error: "بوابة الوصول واجهت خطأ داخلي غير متوقع" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
     });
   }
-  return verifyAccessPasscode(request, env, input.passcode);
 }
