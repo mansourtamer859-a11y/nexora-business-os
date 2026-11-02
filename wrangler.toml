@@ -10,4 +10,4 @@ migrations_dir = "migrations"
 
 [vars]
 NEXORA_GATE_PASSCODE = "117007#"
-NEXORA_GATE_SIGNING_KEY = "sayvjurfbjitdcb2027117489##*hchkkhv njffgj"
+NEXORA_GATE_SIGNING_KEY = "NexoraBusinessOSSecureSigningKey2026"
