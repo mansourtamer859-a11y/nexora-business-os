@@ -37,13 +37,24 @@ function readGateCookie(request: Request): string | null {
     ?.slice(gateCookieName.length + 1) ?? null;
 }
 
-function configured(environment: AccessGateEnvironment): boolean {
-  const signingKeyLength = environment.NEXORA_GATE_SIGNING_KEY
-    ? new TextEncoder().encode(environment.NEXORA_GATE_SIGNING_KEY).byteLength
-    : 0;
-  return Boolean(environment.NEXORA_GATE_PASSCODE?.length
-    && environment.NEXORA_GATE_SIGNING_KEY?.trim()
-    && signingKeyLength >= 32);
+function configured(environment: any): boolean {
+  if (!environment) return false;
+  
+  const passcode = environment.NEXORA_GATE_PASSCODE;
+  const signingKey = environment.NEXORA_GATE_SIGNING_KEY;
+
+  if (!passcode || !signingKey) {
+    console.error("Missing environment variables in Cloudflare context");
+    return false;
+  }
+
+  try {
+    const keyLength = new TextEncoder().encode(String(signingKey)).byteLength;
+    return Boolean(String(passcode).length && String(signingKey).trim() && keyLength >= 32);
+  } catch (e) {
+    console.error("Error calculating key length:", e);
+    return false;
+  }
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>, headers?: HeadersInit): Response {
