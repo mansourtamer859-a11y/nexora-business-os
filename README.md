@@ -24,7 +24,7 @@ The Vite development and preview servers bind to port `4173` and fail with an ex
 
 ## Cloudflare Pages deployment
 
-Build with `npm run build`; the Pages output directory is `dist`. The app uses Cloudflare Pages Functions under `functions/` for identity verification and workspace data, so it is not a static-only deployment. `public/_headers` sets browser security headers. The Pages SPA fallback handles client-side routes; HTTPS must be enabled at the Cloudflare edge.
+Build with `npm run build`; the Pages output directory is `dist`. The app uses Cloudflare Pages Functions under `functions/` for identity verification and workspace data, so it is not a static-only deployment. `public/_headers` sets browser security headers. Pages' built-in SPA behavior serves the app entry point for client-side routes when no root `404.html` is present; no catch-all `_redirects` rule is needed. HTTPS must be enabled at the Cloudflare edge.
 
 Before deployment:
 

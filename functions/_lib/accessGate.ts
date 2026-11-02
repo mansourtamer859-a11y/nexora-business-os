@@ -38,8 +38,12 @@ function readGateCookie(request: Request): string | null {
 }
 
 function configured(environment: AccessGateEnvironment): boolean {
-  return Boolean(environment.NEXORA_GATE_PASSCODE && environment.NEXORA_GATE_SIGNING_KEY
-    && environment.NEXORA_GATE_SIGNING_KEY.length >= 32);
+  const signingKeyLength = environment.NEXORA_GATE_SIGNING_KEY
+    ? new TextEncoder().encode(environment.NEXORA_GATE_SIGNING_KEY).byteLength
+    : 0;
+  return Boolean(environment.NEXORA_GATE_PASSCODE?.length
+    && environment.NEXORA_GATE_SIGNING_KEY?.trim()
+    && signingKeyLength >= 32);
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>, headers?: HeadersInit): Response {
@@ -108,7 +112,8 @@ export async function requireAccessGate(
     return await hasAccessGate(request, environment)
       ? null
       : authError(403, 'Complete the access gate before continuing.');
-  } catch {
+  } catch (error) {
+    console.error('Could not evaluate the access gate for a protected request.', error);
     return authError(503, 'The access gate is temporarily unavailable.');
   }
 }
@@ -124,7 +129,8 @@ export async function getAccessGateStatus(
   try {
     const verified = await hasAccessGate(request, environment);
     return jsonResponse(verified ? 200 : 401, { verified });
-  } catch {
+  } catch (error) {
+    console.error('Could not read the access gate status.', error);
     return jsonResponse(503, { error: 'The access gate is temporarily unavailable.' });
   }
 }
