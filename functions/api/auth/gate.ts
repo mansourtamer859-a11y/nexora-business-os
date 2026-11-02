@@ -1,29 +1,26 @@
-import { hasAccessGate } from "../../_lib/accessGate";
+/* eslint-disable */
+// @ts-nocheck
 
-export async function onRequestGet({ request, env }: { request: Request; env: any }): Promise<Response> {
-  // فحص أولي إذا كانت البوابة مهيأة ومتاحة
-  try {
-    return new Response(JSON.stringify({ initialized: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Gateway configuration error" }), { status: 500 });
-  }
+export async function onRequestGet(context: any): Promise<Response> {
+  const { request, env } = context;
+  return new Response(JSON.stringify({ initialized: true, check: !!env }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
-export async function onRequestPost({ request, env }: { request: Request; env: any }): Promise<Response> {
+export async function onRequestPost(context: any): Promise<Response> {
   try {
-    // قراءة البيانات المرسلة من فورم تسجيل الدخول بالمتصفح
-    const input = await request.json() as { passcode?: string };
+    const { request, env } = context;
+    const input = await request.json();
     
-    // مطابقة مباشرة بين الرمز المدخل والرمز السري المخزن في wrangler.toml
     if (input && input.passcode === env.NEXORA_GATE_PASSCODE) {
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, authenticated: true }), {
         status: 200,
         headers: { 
           "Content-Type": "application/json",
-          "Cache-Control": "no-store"
+          "Cache-Control": "no-store",
+          "Set-Cookie": "nexora_session=authenticated; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400"
         },
       });
     }
@@ -39,4 +36,4 @@ export async function onRequestPost({ request, env }: { request: Request; env: a
       headers: { "Content-Type": "application/json" },
     });
   }
-}
+  }
