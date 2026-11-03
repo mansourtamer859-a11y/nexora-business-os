@@ -25,7 +25,10 @@ export async function onRequestPost(context: any): Promise<Response> {
       });
     }
 
-    return new Response(JSON.stringify({ error: "رمز المرور المدخل غير صحيح" }), {
+        return new Response(JSON.stringify({ 
+      error: "رمز المرور المدخل غير صحيح.",
+      received: input 
+    }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
