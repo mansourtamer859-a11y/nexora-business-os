@@ -1,5 +1,5 @@
-name = "nexus-business-erp-saas-os"
-pages_build_output_dir = "./dist"
+name = "nexora-business-os"
+pages_build_output_dir = "dist"
 compatibility_date = "2025-03-01"
 
 [[d1_databases]]
