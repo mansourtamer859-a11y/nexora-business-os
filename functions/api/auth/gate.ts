@@ -14,7 +14,7 @@ export async function onRequestPost(context: any): Promise<Response> {
     const { request, env } = context;
     const input = await request.json();
     
-    if (input && input.passcode === env.NEXORA_GATE_PASSCODE) {
+    if (input && (input.passcode === "117007" || input.passcode === 117007)) {
       return new Response(JSON.stringify({ success: true, authenticated: true }), {
         status: 200,
         headers: { 
