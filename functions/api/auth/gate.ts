@@ -78,11 +78,12 @@ export async function onRequestPost(context: any): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
 
-  } catch (error: any) {
-    // معالجة الأخطاء غير المتوقعة لمنع تعليق المتصفح (Endless Loader)
+    } catch (error: any) {
+    // تعديل ذكي ليعيد السيرفر نص الخطأ الفعلي بدلاً من الرسالة المبهمة
     return new Response(JSON.stringify({ 
-      error: "بوابة الوصول واجهت خطأ داخلي.",
-      details: error.message || error
+      error: "بوابة الوصول واجهت خطأ داخلي في الخادم أو قاعدة البيانات.",
+      message: error.message || String(error),
+      stack: error.stack || ""
     }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
