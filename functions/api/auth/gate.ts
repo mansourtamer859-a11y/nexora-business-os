@@ -36,4 +36,4 @@ export async function onRequestPost(context: any): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
   }
-  }
+}
