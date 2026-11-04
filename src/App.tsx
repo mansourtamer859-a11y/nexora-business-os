@@ -72,16 +72,50 @@ function identityResponseError(status: number): Error {
   return new Error(`Identity verification failed (HTTP ${status}).`);
 }
 
-async function parseIdentityResponse(response: Response): Promise<unknown> {
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const parentSignal = init.signal;
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const abortFromParent = () => controller.abort();
+  if (parentSignal?.aborted) controller.abort();
+  else parentSignal?.addEventListener('abort', abortFromParent, { once: true });
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (!timedOut) throw error;
+    const requestError = new Error(timeoutMessage);
+    Object.defineProperty(requestError, 'cause', { value: error });
+    throw requestError;
+  } finally {
+    window.clearTimeout(timeout);
+    parentSignal?.removeEventListener('abort', abortFromParent);
+  }
+}
+
+async function parseIdentityResponse(response: Response, endpoint = '/api/auth/session'): Promise<unknown> {
   const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
   if (!contentType.includes('application/json') && !contentType.includes('+json')) {
-    throw new Error('The authentication endpoint returned HTML instead of JSON. Deploy the Pages Function for /api/auth/session; sign-in is unavailable until it is configured.');
+    throw new Error(endpoint === '/api/auth/gate'
+      ? 'The access gate endpoint returned HTML instead of JSON. Verify /api/auth/gate is deployed as a Pages Function.'
+      : 'The authentication endpoint returned HTML instead of JSON. Deploy the Pages Function for /api/auth/session; sign-in is unavailable until it is configured.');
   }
 
   try {
     return await response.json();
   } catch {
-    throw new Error('The identity endpoint returned invalid JSON. Deploy or repair the Pages Function for /api/auth/session.');
+    throw new Error(endpoint === '/api/auth/gate'
+      ? 'The access gate endpoint returned invalid JSON.'
+      : 'The identity endpoint returned invalid JSON. Deploy or repair the Pages Function for /api/auth/session.');
   }
 }
 
@@ -702,13 +736,13 @@ export function App() {
     setGateBusy(true);
     setGateError('');
     try {
-      const response = await fetch('/api/auth/gate', {
+      const response = await fetchWithTimeout('/api/auth/gate', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode: gatePasscode }),
-      });
-      const body = await parseIdentityResponse(response);
+      }, 15_000, 'Access gate request timed out. Please retry.');
+      const body = await parseIdentityResponse(response, '/api/auth/gate');
       if (!response.ok) {
         const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
           ? body.error
@@ -732,18 +766,18 @@ export function App() {
     const controller = new AbortController();
     const checkGate = async () => {
       try {
-        const response = await fetch('/api/auth/gate', {
+        const response = await fetchWithTimeout('/api/auth/gate', {
           cache: 'no-store',
           credentials: 'same-origin',
           signal: controller.signal,
-        });
+        }, 10_000, 'Access gate verification timed out. Please retry.');
         if (controller.signal.aborted) return;
         if (response.status === 401) {
           setAccessStage('gate-required');
           return;
         }
         if (!response.ok) throw identityResponseError(response.status);
-        const result = await parseIdentityResponse(response);
+        const result = await parseIdentityResponse(response, '/api/auth/gate');
         if (typeof result !== 'object' || result === null || !('verified' in result) || result.verified !== true) {
           throw new Error('The access gate returned an invalid response.');
         }
