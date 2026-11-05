@@ -693,7 +693,7 @@ export function App() {
   const [toast, setToast] = useState('');
   const handleUnauthorized = useCallback(() => {
     setGateError('');
-    setAccessStage('gate-checking');
+    setAccessStage('workspace');
     setGateAttempt((attempt) => attempt + 1);
   }, []);
 
