@@ -30,6 +30,8 @@
   "Complete the access gate before continuing.": "أكمل التحقق من بوابة الوصول للمتابعة.",
   "The access passcode is incorrect.": "رمز المرور غير صحيح.",
   "The access gate is temporarily unavailable.": "بوابة الوصول غير متاحة مؤقتاً.",
+  "The access gate endpoint is not deployed. Deploy the Pages Functions and retry.": "نقطة بوابة الوصول غير منشورة. انشر Pages Functions ثم أعد المحاولة.",
+  "The access gate is temporarily unavailable. Check its runtime secrets and D1 binding, then retry.": "بوابة الوصول غير متاحة مؤقتاً. تحقق من أسرار وقت التشغيل وربط D1 ثم أعد المحاولة.",
   "Secure AI gateway": "بوابة ذكاء اصطناعي آمنة",
   "Provider calls require a verified session": "تتطلب اتصالات الموفر جلسة تم التحقق منها",
   "on demand": "عند الطلب",

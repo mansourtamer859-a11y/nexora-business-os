@@ -20,6 +20,8 @@
   "Complete the access gate before continuing.": "Complete the access gate before continuing.",
   "The access passcode is incorrect.": "The access passcode is incorrect.",
   "The access gate is temporarily unavailable.": "The access gate is temporarily unavailable.",
+  "The access gate endpoint is not deployed. Deploy the Pages Functions and retry.": "The access gate endpoint is not deployed. Deploy the Pages Functions and retry.",
+  "The access gate is temporarily unavailable. Check its runtime secrets and D1 binding, then retry.": "The access gate is temporarily unavailable. Check its runtime secrets and D1 binding, then retry.",
   "Secure AI gateway": "Secure AI gateway",
   "Provider calls require a verified session": "Provider calls require a verified session",
   "on demand": "on demand",

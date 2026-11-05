@@ -62,7 +62,16 @@ async function fetchIdentityResponse(signal: AbortSignal): Promise<Response> {
   throw lastError;
 }
 
-function identityResponseError(status: number): Error {
+function identityResponseError(status: number, endpoint = '/api/auth/session'): Error {
+  if (endpoint === '/api/auth/gate') {
+    if (status === 404) {
+      return new Error('The access gate endpoint is not deployed. Deploy the Pages Functions and retry.');
+    }
+    if (status >= 500) {
+      return new Error('The access gate is temporarily unavailable. Check its runtime secrets and D1 binding, then retry.');
+    }
+    return new Error(`Access gate verification failed (HTTP ${status}).`);
+  }
   if (status === 404) {
     return new Error('The authentication endpoint is not deployed. Deploy the Pages Functions and retry.');
   }
@@ -776,7 +785,7 @@ export function App() {
           setAccessStage('gate-required');
           return;
         }
-        if (!response.ok) throw identityResponseError(response.status);
+        if (!response.ok) throw identityResponseError(response.status, '/api/auth/gate');
         const result = await parseIdentityResponse(response, '/api/auth/gate');
         if (typeof result !== 'object' || result === null || !('verified' in result) || result.verified !== true) {
           throw new Error('The access gate returned an invalid response.');
