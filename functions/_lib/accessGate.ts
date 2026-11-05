@@ -1,41 +1,21 @@
-/* eslint-disable */
-// @ts-nocheck
+export async function onRequestPost(context: any): Promise<Response> {
+  const body = await context.request.json().catch(() => ({}));
+  const passcode = body?.passcode?.trim();
 
-import { authError } from './session';
-
-const gateCookieName = '__Host-nexora_gate';
-
-export async function hasAccessGate(request: Request, environment: any): Promise<boolean> {
-  const cookieHeader = request.headers.get('Cookie') ?? '';
-  return cookieHeader.includes(`${gateCookieName}=true`);
-}
-
-export async function requireAccessGate(request: Request, environment: any): Promise<Response | null> {
-  const permit = await hasAccessGate(request, environment);
-  return permit ? null : authError(403, 'Complete the access gate before continuing.');
-}
-
-export async function getAccessGateStatus(request: Request, environment: any): Promise<Response> {
-  const verified = await hasAccessGate(request, environment);
-  return new Response(JSON.stringify({ verified }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
-}
-
-export async function verifyAccessPasscode(request: Request, environment: any, candidate: unknown): Promise<Response> {
-  const cleanCandidate = typeof candidate === 'string' ? candidate.trim() : '';
-  
-  // التحقق الفوري والصارم من رمز المرور الخاص بك لحماية ملكيتك للموقع
-  if (cleanCandidate === "117007#" || cleanCandidate === "117007") {
+  // جدار حماية صارم ومباشر: إذا كتب المستخدم رمزك الخاص، يعبر فوراً بأعلى استجابة نجاح متوافقة مع المتصفح
+  if (passcode === "117007#" || passcode === "117007") {
     return new Response(JSON.stringify({ verified: true }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Set-Cookie': `${gateCookieName}=true; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`
+        'Set-Cookie': '__Host-nexora_gate=true; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200'
       }
     });
   }
-  
-  return authError(401, 'The access passcode is incorrect.');
+  return new Response(JSON.stringify({ error: 'رمز المرور غير صحيح.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+}
+
+export async function onRequestGet(context: any): Promise<Response> {
+  const cookie = context.request.headers.get('Cookie') ?? '';
+  return new Response(JSON.stringify({ verified: cookie.includes('__Host-nexora_gate=true') }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
