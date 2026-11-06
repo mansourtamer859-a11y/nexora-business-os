@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale } from '../i18n/useLocale';
-type typeFormEvent = React.FormEvent<HTMLFormElement>;
 
-type AssistantResult = {
+type typeFormEvent = React.FormEvent<HTMLFormElement>;
 
 type AssistantResult = {
   text: string;
@@ -31,23 +30,26 @@ function encodeBase64(buffer: ArrayBuffer): string {
   let binary = '';
   const chunkSize = 0x8000;
   for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
   }
   return btoa(binary);
 }
 
 async function parseResponse(response: Response): Promise<unknown> {
-  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
-  if (!contentType.includes('application/json') && !contentType.includes('+json')) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!(contentType.includes('application/json') || contentType.includes('/json'))) {
     throw new Error('The assistant endpoint returned a non-JSON response.');
   }
   try {
-    return await response.json() as unknown;
+    return await response.json();
   } catch {
     throw new Error('The assistant endpoint returned invalid JSON.');
   }
 }
 
+export default function AssistantGateway() {
+  const { t, locale } = useLocale();
+  
 export function AssistantGateway() {
   const { t, locale } = useLocale();
   const [prompt, setPrompt] = useState('');
