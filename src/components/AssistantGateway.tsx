@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale } from '../i18n/useLocale';
+type typeFormEvent = React.FormEvent<HTMLFormElement>;
+
+type AssistantResult = {
 
 type AssistantResult = {
   text: string;
