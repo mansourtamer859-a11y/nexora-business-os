@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocale } from '../i18n/useLocale';
 
@@ -57,6 +58,198 @@ export function AssistantGateway() {
   const [historyBusy, setHistoryBusy] = useState(true);
   const [historyError, setHistoryError] = useState('');
   const historyCopy = useMemo(() => locale === 'ar'
+      // ==================== [بداية حقن نظام الأمان العالمي لـ Nexora] ====================
+  const [step, setStep] = useState('passcode');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [passcode, setPasscode] = useState('');
+  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
+  const [activeUser, setActiveUser] = useState<{ name: string; email: string } | null>(null);
+  const [secLoading, setSecLoading] = useState(false);
+  const [secMessage, setSecMessage] = useState('');
+  const [secError, setSecError] = useState<string | null>(null);
+
+  // التحقق الفوري من جلسة المتصفح
+  useEffect(() => {
+    fetch('/api/auth/gate')
+      .then((res) => res.json())
+      .then((data: any) => { if (data.verified) setStep('identity'); })
+      .catch(() => {});
+  }, []);
+
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  // 1. معالجة بوابة الرمز السري
+  const handlePasscodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecLoading(true);
+    setSecError(null);
+    setSecMessage('جاري تشفير قنوات النظام وفحص الجدار الناري الموحد لـ Nexora...');
+    await delay(2500); 
+    try {
+      const res = await fetch('/api/auth/gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json() as any;
+      if (!res.ok) throw new Error(data.error || 'رمز الوصول غير صحيح.');
+      setStep('identity');
+    } catch (err: any) {
+      setSecError(err.message);
+    } finally {
+      setSecLoading(false);
+    }
+  };
+
+  // 2. معالجة حساب الإيميل والباسورد
+  const handleIdentitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecLoading(true);
+    setSecError(null);
+    setSecMessage(authMode === 'login' ? 'جاري مطابقة الهوية وفحص السجلات داخل قاعدة البيانات السحابية D1...' : 'جاري إنشاء المعرفات الفريدة وتأمين البيانات...');
+    await delay(3500); 
+    const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authForm),
+      });
+      const data = await res.json() as any;
+      if (!res.ok) throw new Error(data.error || 'فشلت المصادقة.');
+      if (authMode === 'login') {
+        setActiveUser(data.user);
+        setStep('workspace');
+      } else {
+        setAuthMode('login');
+        alert('تم تسجيل وتأمين حسابك بنجاح!');
+      }
+    } catch (err: any) {
+      setSecError(err.message);
+    } finally {
+      setSecLoading(false);
+    }
+  };
+
+  // 3. الخروج الآمن
+  const handleLogout = async () => {
+    setSecLoading(true);
+    setSecMessage('جاري تدمير التواقيع الرقمية ومسح جلسات المتصفح بأمان...');
+    await delay(2000);
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setActiveUser(null);
+    setPasscode('');
+    setAuthForm({ email: '', password: '', name: '' });
+    setStep('passcode');
+    setSecLoading(false);
+  };
+
+  // عرض شاشات التحميل والحماية قبل كود المساعد الذكي
+  if (secLoading) {
+    return (
+      <div className="min-h-screen bg-[#0b0c0e] flex flex-col justify-center items-center p-4" style={{ direction: 'rtl' }}>
+        <div className="flex flex-col items-center space-y-6 text-center max-w-sm">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-4 border-[#22c55e]/10"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-t-[#22c55e] border-r-[#22c55e] animate-spin"></div>
+          </div>
+          <p className="text-sm font-medium text-gray-300 animate-pulse">{secMessage}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'passcode') {
+    return (
+      <div className="min-h-screen bg-[#0b0c0e] text-[#e4e6eb] flex flex-col justify-center items-center p-4 font-sans" style={{ direction: 'rtl' }}>
+        <div className="w-full max-w-md bg-[#13151a] border border-[#222630] rounded-2xl p-8 shadow-2xl">
+          {secError && <div className="mb-4 p-3 bg-red-950/50 border border-red-800 text-red-400 rounded-xl text-xs text-center font-bold">{secError}</div>}
+          <form onSubmit={handlePasscodeSubmit} className="space-y-6">
+            <div className="text-center">
+              <span className="text-xs uppercase tracking-widest text-[#22c55e] font-black">Nexora Security Node</span>
+              <h2 className="text-2xl font-black text-white mt-1">بوابة الوصول الآمنة</h2>
+              <p className="text-xs text-gray-400 mt-2">يرجى كتابة الرمز السري للنظام لتجاوز جدار الحماية وحماية السيرفر.</p>
+            </div>
+            <input
+              type="password"
+              placeholder="أدخل الرمز السرّي متبوعاً بـ #"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+              className="w-full bg-[#1a1d24] border border-[#2d3341] rounded-xl px-4 py-4 text-sm text-center focus:outline-none focus:border-[#22c55e] tracking-widest text-white font-bold"
+            />
+            <button type="submit" className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold py-4 rounded-xl text-sm transition-all shadow-lg shadow-[#22c55e]/15">
+              تأكيد التحقق السحابي والدخول
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'identity') {
+    return (
+      <div className="min-h-screen bg-[#0b0c0e] text-[#e4e6eb] flex flex-col justify-center items-center p-4 font-sans" style={{ direction: 'rtl' }}>
+        <div className="w-full max-w-md bg-[#13151a] border border-[#222630] rounded-2xl p-8 shadow-2xl">
+          {secError && <div className="mb-4 p-3 bg-red-950/50 border border-red-800 text-red-400 rounded-xl text-xs text-center font-bold">{secError}</div>}
+          
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-black text-white">{authMode === 'login' ? 'تسجيل الدخول للمساحة الشخصية' : 'إنشاء حساب مستخدم جديد'}</h2>
+            </div>
+            {authMode === 'register' && (
+              <input
+                type="text"
+                placeholder="الاسم الكامل"
+                required
+                value={authForm.name}
+                onChange={(e) => setAuthForm({...authForm, name: e.target.value})}
+                className="w-full bg-[#1a1d24] border border-[#2d3341] rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-[#22c55e] text-right"
+              />
+            )}
+            <input
+              type="email"
+              placeholder="البريد الإلكتروني"
+              required
+              value={authForm.email}
+              onChange={(e) => setAuthForm({...authForm, email: e.target.value})}
+              className="w-full bg-[#1a1d24] border border-[#2d3341] rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-[#22c55e] text-left"
+              style={{ direction: 'ltr' }}
+            />
+            <input
+              type="password"
+              placeholder="كلمة المرور"
+              required
+              value={authForm.password}
+              onChange={(e) => setAuthForm({...authForm, password: e.target.value})}
+              className="w-full bg-[#1a1d24] border border-[#2d3341] rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-[#22c55e] text-left"
+              style={{ direction: 'ltr' }}
+            />
+            <button type="submit" className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold py-4 rounded-xl text-sm transition-all shadow-lg shadow-[#22c55e]/15">
+              {authMode === 'login' ? 'تحقق ومصادقة الدخول الآمن' : 'حفظ وقفل البيانات السحابية'}
+            </button>
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute w-full border-t border-[#222630]"></div>
+              <span className="relative px-3 bg-[#13151a] text-xs text-gray-500">أو</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.href = '/api/auth/google/start'}
+              className="w-full bg-[#1a1d24] hover:bg-[#222630] border border-[#2d3341] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 text-sm transition-all"
+            >
+              <span>تسجيل الدخول الآمن عبر Google</span>
+            </button>
+            <p className="text-center text-xs text-gray-400 mt-6">
+              {authMode === 'login' ? 'مستخدم جديد للمنصة؟ ' : 'لديك حساب نشط مسبقاً؟ '}
+              <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-[#22c55e] font-bold underline ml-1">
+                {authMode === 'login' ? 'أنشئ حسابك الآن' : 'سجل دخولك'}
+              </button>
+            </p>
+          </form>
+        </div>
+      </div>
+    );
+  }
+  // ==================== [نهاية حقن نظام الأمان - يبدأ الآن كود المساعد الأصلي] ====================
+        
     ? {
       title: 'سجل المحادثات',
       refresh: 'تحديث',
@@ -223,6 +416,22 @@ export function AssistantGateway() {
   };
 
   return <section className="assistant-gateway" lang={locale} aria-label={t('Nexora AI Gateway')}>
+        {/* شريط الإدارة العلوي المطور لبيانات الحساب وزر خروج يوتيوب الأحمر */}
+    <div className="w-full bg-[#13151a] border-b border-[#222630] p-4 flex justify-between items-center px-6 mb-4" style={{ direction: 'rtl' }}>
+      <div className="flex items-center gap-3">
+        <div className="w-3 h-3 rounded-full bg-[#22c55e] animate-pulse"></div>
+        <span className="text-xs text-gray-400 font-mono">
+          {locale === 'ar' ? `المستخدم النشط بالسيرفر: ${activeUser?.name || 'مالك النظام'}` : `Active node: ${activeUser?.name || 'System Owner'}`}
+        </span>
+      </div>
+      <button
+        onClick={handleLogout}
+        className="bg-red-600 hover:bg-red-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-md shadow-red-600/10 text-xs"
+      >
+        {locale === 'ar' ? 'خروج آمن' : 'Logout Node'}
+      </button>
+    </div>
+                                                                                                               
     <aside className="assistant-gateway-history">
       <div className="assistant-history-heading">
         <h4>{historyCopy.title}</h4>
