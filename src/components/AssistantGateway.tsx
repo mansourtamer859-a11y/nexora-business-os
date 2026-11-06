@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocale } from '../i18n/useLocale';
 
 type AssistantResult = {
@@ -79,7 +78,7 @@ export function AssistantGateway() {
   const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
   // 1. معالجة بوابة الرمز السري
-  const handlePasscodeSubmit = async (e: React.FormEvent) => {
+  const handlePasscodeSubmit = async (e: typeFormEvent) => {
     e.preventDefault();
     setSecLoading(true);
     setSecError(null);
@@ -102,7 +101,7 @@ export function AssistantGateway() {
   };
 
   // 2. معالجة حساب الإيميل والباسورد
-  const handleIdentitySubmit = async (e: React.FormEvent) => {
+  const handleIdentitySubmit = async (e: typeFormEvent) => {
     e.preventDefault();
     setSecLoading(true);
     setSecError(null);
