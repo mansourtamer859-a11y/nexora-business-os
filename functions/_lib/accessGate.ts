@@ -107,3 +107,29 @@ export function jsonResponse(status: number, body: Record<string, any>, headers?
   responseHeaders.set('Cache-Control', 'no-store');
   return new Response(JSON.stringify(body), { status, headers: responseHeaders });
 }
+// دالة الحماية والتحقق الوسيطة لإرجاع خطأ 503 أو 403 للمسارات المحمية في حال فشل التحقق
+export async function requireAccessGate(
+  request: Request,
+  env: AccessGateEnvironment
+): Promise<Response | null> {
+  // 1. التحقق من إعداد البيئة بالشكل الصحيح في لوحة كلوفلير
+  if (!isConfigured(env)) {
+    console.error('NEXORA_GATE_PASSCODE or NEXORA_GATE_SIGNING_KEY is not configured.');
+    return jsonResponse(503, { error: 'The access gate is not configured for this deployment.' });
+  }
+
+  try {
+    // 2. التحقق من صلاحية التوكن الرقمي والكوكي الحالي
+    const hasAccess = await hasAccessGate(request, env);
+    if (hasAccess) {
+      return null; // التحقق ناجح، اسمح للملف بإكمال التنفيذ
+    }
+
+    // 3. إذا لم يمتلك صلاحية الدخول يتم إرجاع خطأ مصادقة غير مكتملة
+    return jsonResponse(403, { error: 'Complete the access gate before continuing.' });
+  } catch (error: any) {
+    console.error('Could not evaluate the access gate for a protected request.', error);
+    return jsonResponse(503, { error: 'The access gate is temporarily unavailable.' });
+  }
+}
+  
