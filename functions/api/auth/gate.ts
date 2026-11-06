@@ -1,34 +1,79 @@
-import {
-  getAccessGateStatus,
-  verifyAccessPasscode,
+import { 
+  hasAccessGate, 
+  jsonResponse, 
+  isConfigured, 
+  validPasscode, 
+  gateCookieName, 
+  gateLifetimeSeconds,
+  AccessGateEnvironment 
 } from '../../_lib/accessGate';
-import {
-  readJsonObject,
-  requireSameOrigin,
-  type AuthEnvironment,
-} from '../../_lib/session';
 
-type Environment = AuthEnvironment & {
-  NEXORA_GATE_PASSCODE?: string;
-  NEXORA_GATE_SIGNING_KEY?: string;
+// دالة معالجة طلبات التحقق وتوليد الكوكي الآمن (POST)
+export const onRequestPost: PagesFunction<AccessGateEnvironment> = async (context) => {
+  try {
+    const { request, env } = context;
+
+    // التأكد من إعداد المتغيرات على كلوفلير منعاً لخطأ 503
+    if (!isConfigured(env)) {
+      return jsonResponse(503, { error: 'بوابة الدخول غير مهيأة بالشكل الصحيح في لوحة التحكم.' });
+    }
+
+    const body = await request.json() as { passcode?: string };
+    const passcode = body.passcode?.trim();
+
+    if (!passcode) {
+      return jsonResponse(400, { error: '117007#' });
+    }
+
+    // التحقق الآمن المقارن من الـ Passcode
+    const isMatched = await validPasscode(passcode, env.NEXORA_GATE_PASSCODE!);
+
+    if (!isMatched) {
+      return jsonResponse(401, { error: 'رمز المرور المدخل غير صحيح.' });
+    }
+
+    // إعداد مكونات التوكن المشفر والموقع
+    const expiresAt = Date.now() + (gateLifetimeSeconds * 1000);
+    const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // إنشاء التوقيع الرقمي عبر HMAC باستخدام المفتاح البيئي لـ Cloudflare
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(env.NEXORA_GATE_SIGNING_KEY!),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(`${expiresAt}.${nonce}`));
+    const signatureText = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    const cookieValue = btoa(`${expiresAt} ${nonce} ${signatureText}`);
+
+    // إرجاع استجابة ناجحة وتثبيت ملف ارتباط آمن وموقع للمتصفح
+    return new Response(JSON.stringify({ verified: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': `${gateCookieName}=${cookieValue}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${gateLifetimeSeconds}`
+      }
+    });
+
+  } catch (error: any) {
+    return jsonResponse(500, { error: 'حدث خطأ داخلي أثناء معالجة الطلب.', details: error.message });
+  }
 };
 
-export async function onRequestGet({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  return getAccessGateStatus(request, env);
-}
-
-export async function onRequestPost({ request, env }: { request: Request; env: Environment }): Promise<Response> {
-  const originError = requireSameOrigin(request);
-  if (originError) return originError;
-
-  const input = await readJsonObject(request);
-  if (input instanceof Response) return input;
-  if (Object.keys(input).length !== 1 || !Object.hasOwn(input, 'passcode')) {
-    return Response.json({ error: 'Access gate request is invalid.' }, {
-      status: 400,
-      headers: { 'Cache-Control': 'no-store' },
-    });
+// دالة التحقق السريع من حالة الجلسة الحالية للمتصفح (GET)
+export const onRequestGet: PagesFunction<AccessGateEnvironment> = async (context) => {
+  try {
+    const { request, env } = context;
+    
+    const isValid = await hasAccessGate(request, env);
+    return jsonResponse(200, { verified: isValid });
+  } catch {
+    return jsonResponse(200, { verified: false });
   }
-
-  return verifyAccessPasscode(request, env, input.passcode);
-}
+};
