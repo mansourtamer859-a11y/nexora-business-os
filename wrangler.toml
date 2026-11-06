@@ -7,3 +7,9 @@ binding = "DB"
 database_name = "nexora-db"
 database_id = "6320c168-5d19-4983-9192-c626215ec177"
 migrations_dir = "migrations"
+
+[vars]
+NEXORA_GATE_PASSCODE = "#117007"
+NEXORA_GATE_SIGNING_KEY = "nexora_cyber_security_master_key_2027_global"
+NEXT_PUBLIC_SITE_URL = "https://pages.dev"
+GOOGLE_CLIENT_ID = "automated_oauth_node"
