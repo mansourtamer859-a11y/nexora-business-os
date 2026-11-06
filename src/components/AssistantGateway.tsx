@@ -49,6 +49,245 @@ async function parseResponse(response: Response): Promise<unknown> {
 
 export default function AssistantGateway() {
   const { t, locale } = useLocale();
+
+  // ==================== [بداية حقن نظام الأمان العالمي لـ Nexora] ====================
+  const [step, setStep] = useState('passcode');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [passcode, setPasscode] = useState('');
+  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
+  const [activeUser, setActiveUser] = useState<{ name: string; email: string } | null>(null);
+  const [secLoading, setSecLoading] = useState(false);
+  const [secMessage, setSecMessage] = useState('');
+  const [secError, setSecError] = useState<string | null>(null);
+
+  // 2. حالات واجهة المساعد الذكي الأصلية
+  const [prompt, setPrompt] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<AssistantResult | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [history, setHistory] = useState<Conversation[]>([]);
+  const [historyBusy, setHistoryBusy] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+
+  const historyCopy = useMemo(() => {
+    return locale === 'ar'
+      ? {
+          title: 'سجل المحادثات',
+          refresh: 'تحديث',
+          loading: 'جاري تحميل السجل...',
+          empty: 'ستظهر المحادثات المؤرشفة هنا.',
+          error: 'تعذر تحميل سجل المحادثات.',
+          archiveNotice: 'لحفظ سجل المحادثات مشفراً في مساحة عملك.',
+          untitled: 'محادثة جديدة',
+          modes: { text: 'محادثة', document: 'تحليل مستند', audio: 'محادثة صوتية' },
+        }
+      : {
+          title: 'Conversation history',
+          refresh: 'Refresh',
+          loading: 'Loading history...',
+          empty: 'Archived conversations will appear here.',
+          error: 'Could not load conversation history.',
+          archiveNotice: 'Conversation history is encrypted and saved to your workspace.',
+          untitled: 'New conversation',
+          modes: { text: 'Chat', document: 'Document analysis', audio: 'Voice chat' },
+        };
+  }, [locale]);
+
+  // التحقق الفوري من الكوكي المؤمن
+  useEffect(() => {
+    fetch('/api/auth/gate')
+      .then((res) => res.json())
+      .then((data: any) => { if (data.verified) setStep('identity'); })
+      .catch(() => {});
+  }, []);
+
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  // 1. معالجة بوابة الرمز السري
+  const handlePasscodeSubmit = async (e: typeFormEvent) => {
+    e.preventDefault();
+    setSecLoading(true);
+    setSecError(null);
+    setSecMessage('جاري تشفير قنوات النظام وفحص الجدار الناري الموحد لـ Nexora...');
+    await delay(2500); 
+    try {
+      const res = await fetch('/api/auth/gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json() as any;
+      if (!res.ok) throw new Error(data.error || 'رمز الوصول غير صحيح.');
+      setStep('identity');
+    } catch (err: any) {
+      setSecError(err.message);
+    } finally {
+      setSecLoading(false);
+    }
+  };
+
+  // 2. معالجة حساب الإيميل والباسورد
+  const handleIdentitySubmit = async (e: typeFormEvent) => {
+    e.preventDefault();
+    setSecLoading(true);
+    setSecError(null);
+    setSecMessage(authMode === 'login' ? 'جاري مطابقة الهوية وفحص السجلات داخل قاعدة البيانات السحابية D1...' : 'جاري إنشاء المعرفات الفريدة وتأمين البيانات...');
+    await delay(3500); 
+    const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authForm),
+      });
+      const data = await res.json() as any;
+      if (!res.ok) throw new Error(data.error || 'فشلت المصادقة.');
+      if (authMode === 'login') {
+        setActiveUser(data.user);
+        setStep('workspace');
+        void loadHistory();
+      } else {
+        setAuthMode('login');
+        alert('تم تسجيل وتأمين حسابك بنجاح!');
+      }
+    } catch (err: any) {
+      setSecError(err.message);
+    } finally {
+      setSecLoading(false);
+    }
+  };
+
+  // 3. الخروج الآمن
+  const handleLogout = async () => {
+    setSecLoading(true);
+    setSecMessage('جاري تدمير التواقيع الرقمية ومسح جلسات المتصفح بأمان...');
+    await delay(2000);
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setActiveUser(null);
+    setPasscode('');
+    setAuthForm({ email: '', password: '', name: '' });
+    setStep('passcode');
+    setSecLoading(false);
+  };
+
+  // دالة جلب سجل المحادثات الأصلية للمساعد
+  const loadHistory = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setHistoryBusy(true);
+      setHistoryError('');
+      const response = await fetch('/api/assistant/history', {
+        method: 'GET',
+        credentials: 'same-origin',
+        signal,
+      });
+      const body = await parseResponse(response);
+      if (!response.ok) {
+        const msg = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
+          ? body.error
+          : historyCopy.error;
+        throw new Error(msg);
+      }
+      if (typeof body === 'object' && body !== null && 'conversations' in body && Array.isArray(body.conversations)) {
+        setHistory(body.conversations);
+      } else {
+        throw new Error('The assistant returned an invalid response.');
+      }
+    } catch (requestError: any) {
+      if (requestError.name === 'AbortError') return;
+      setHistoryError(requestError instanceof Error ? requestError.message : historyCopy.error);
+    } finally {
+      setHistoryBusy(false);
+    }
+  }, [historyCopy]);
+
+  // دالة إرسال الطلبات الأصلية للمساعد الذكي
+  const submit = async (event: typeFormEvent) => {
+    event.preventDefault();
+    if (!prompt.trim() && !file) {
+      setError(t('Enter a question or choose a supported file.'));
+      return;
+    }
+    if (file && file.size > maxFileSize) {
+      setError(t('Files must be 1 MB or smaller.'));
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setResult(null);
+
+    try {
+      let payload: Record<string, string> = { mode: 'text', prompt: prompt.trim(), locale };
+      if (file) {
+        const mimeType = file.type.toLowerCase();
+        if (mimeType.startsWith('audio/')) {
+          payload = {
+            mode: 'audio',
+            fileBase64: encodeBase64(await file.arrayBuffer()),
+            mimeType,
+            locale,
+          };
+          if (prompt.trim()) payload.prompt = prompt.trim();
+        } else if (mimeType === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          payload = {
+            mode: 'document',
+            fileBase64: encodeBase64(await file.arrayBuffer()),
+            mimeType: 'application/pdf',
+            prompt: prompt.trim(),
+            locale,
+          };
+        } else if (/\.(csv|md|txt)$/i.test(file.name)) {
+          payload = {
+            mode: 'document',
+            documentText: await file.text(),
+            prompt: prompt.trim(),
+            locale,
+          };
+        } else {
+          throw new Error(t('Choose a PDF, CSV, text, Markdown, or supported audio file.'));
+        }
+      }
+
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const body = await parseResponse(response);
+      if (!response.ok) {
+        const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
+          ? body.error
+          : t('The assistant request could not be completed.');
+        throw new Error(message);
+      }
+
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'text' in body &&
+        typeof body.text === 'string' &&
+        'model' in body &&
+        typeof body.model === 'string' &&
+        'provider' in body &&
+        typeof body.provider === 'string'
+      ) {
+        setResult({ text: body.text, model: body.model, provider: body.provider });
+        void loadHistory();
+        setPrompt('');
+        setFile(null);
+        const inputElement = document.getElementById('assistant-file-input');
+        if (inputElement instanceof HTMLInputElement) inputElement.value = '';
+      } else {
+        throw new Error(t('The assistant returned an invalid response.'));
+      }
+    } catch (requestError: any) {
+                  
+export default function AssistantGateway() {
+  const { t, locale } = useLocale();
   
 export function AssistantGateway() {
   const { t, locale } = useLocale();
