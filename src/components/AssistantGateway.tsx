@@ -313,7 +313,7 @@ export function AssistantGateway() {
     return () => controller.abort();
   }, [loadHistory]);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: typeFormEvent) => {
     event.preventDefault();
     if (!prompt.trim() && !file) {
       setError(t('Enter a question or choose a supported file.'));
