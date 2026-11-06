@@ -11,5 +11,5 @@ migrations_dir = "migrations"
 [vars]
 NEXORA_GATE_PASSCODE = "#117007"
 NEXORA_GATE_SIGNING_KEY = "nexora_cyber_security_master_key_2027_global"
-NEXT_PUBLIC_SITE_URL = "https://pages.dev"
+NEXT_PUBLIC_SITE_URL = "https://nexora-business-os.pages.dev"
 GOOGLE_CLIENT_ID = "automated_oauth_node"
