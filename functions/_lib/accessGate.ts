@@ -1,4 +1,3 @@
-
 // التعريفات الأساسية للبيئة السحابية في Cloudflare
 export interface AccessGateEnvironment {
   NEXORA_GATE_PASSCODE?: string;
