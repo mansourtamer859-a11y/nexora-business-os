@@ -1,11 +1,11 @@
-import { 
-  hasAccessGate, 
-  jsonResponse, 
-  isConfigured, 
-  validPasscode, 
-  gateCookieName, 
+import {
+  hasAccessGate,
+  jsonResponse,
+  isConfigured,
+  validPasscode,
+  gateCookieName,
   gateLifetimeSeconds,
-  AccessGateEnvironment 
+  AccessGateEnvironment
 } from '../../_lib/accessGate';
 
 // دالة معالجة طلبات التحقق وتوليد الكوكي الآمن (POST)
